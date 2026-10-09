@@ -101,7 +101,7 @@ The `update` extra (included in `requirements.txt`) is only needed by `initial.p
 
 3. Initialize database. There are two ways to do this:
 - Download the pre-built database from **[here](https://drive.google.com/file/d/1Jod-iFufGW3lIyqttlws9hOqK4k79ha8/view?usp=sharing)** and extract the content to `DLfilter/database/` (~130 MB, decompressed ~1 GB)
-> The pre-built database is updated to 2023-07-10. You may want to [update it by yourself](docs/database.md#update-database) later.
+> The pre-built database is updated to 2026-10-09. You may want to [update it by yourself](docs/database.md#update-database) later.
 
 - Initialize the database by yourself. See [here](docs/database.md#initialize-database) for the instructions.
 
