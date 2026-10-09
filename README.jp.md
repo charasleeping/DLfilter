@@ -101,7 +101,7 @@ pip install -r requirements.txt
 
 3. データベースを初期化します。方法は2つあります:
 - ビルド済みのデータベースを**[こちら](https://drive.google.com/file/d/1Jod-iFufGW3lIyqttlws9hOqK4k79ha8/view?usp=sharing)**からダウンロードし、中身を `DLfilter/database/` に展開します（約 130 MB、展開後は約 1 GB）。
-> ビルド済みデータベースは 2023-07-10 時点のものです。後で[自分で更新](docs/database.md#update-database)することをおすすめします（英語のドキュメント）。
+> ビルド済みデータベースは 2026-10-09 時点のものです。後で[自分で更新](docs/database.md#update-database)することをおすすめします（英語のドキュメント）。
 
 - 自分でデータベースを初期化します。手順は[こちら](docs/database.md#initialize-database)（英語のドキュメント）。
 
