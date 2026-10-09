@@ -43,7 +43,7 @@ DLfilter 是为*个人使用*与学习目的而做的小项目，不一定会定
 - 按热门程度加权类型（偏好冷门或热门的类型）。
 - 按下载数与发售日期加权结果。
 - 包含或排除特定类型，并可按作品形式筛选。
-- 按年龄分级（全年龄 / R15 / R18）筛选，并可排除 AI 生成、部分 AI 生成、低评价、猎奇或男同性恋作品。
+- 按年龄分级筛选，并可排除 AI 生成、部分 AI 生成、低评价、猎奇或男同性恋作品。
 
 ### 好用的细节
 - **预设**：保存整组搜索设置（RJ 编号、类型、作品形式、高级选项），之后再加载，也可从任何位置打开预设文件。
@@ -197,29 +197,3 @@ DLfilter 非常容易使用。你可以按**类型**或**指定作品**搜索相
 | `GET /api/random` | 随机作品，可搭配相似度搜索的筛选条件 |
 | `POST /api/similarity` | 按类型或指定作品的相似度搜索 |
 | `GET /api/presets`、`GET` / `PUT /api/presets/{name}` | 列出、读取与保存预设 |
-
-## 路线图
-- [x] ~~Demo 网站~~
-- [] 自动更新数据库
-- [] 更好的 UI
-- [x] ~~Docker 化~~
-- [] 更完善的文档
-- [] 负向搜索
-- [x] ~~按标题、社团与 RJ 编号搜索~~
-- [x] ~~预设、随机作品与语言切换~~
-- [] DLsite 的其他分类
-- [] 高级标签权重
-- [] 个性化搜索
-- [] ???
-
-## 已知问题
-- 类型 `おやじ`、`少女コミック`、`少年コミック`、`女性コミック`、`青年コミック` 无法搜索，因为它们在 DLsite API 中没有本地化名称。
-- 部分类型的数量可能不正确。
-
-## 致谢
-- 原始项目与相似度搜索：[snowmeow2](https://github.com/snowmeow2/DLfilter)，另有 [AnavRinTW](https://github.com/AnavRinTW) 的贡献。
-- 由 [charasleeping](https://github.com/charasleeping/DLfilter) 重启并扩展。
-- 类型与作品形式的名称和用词遵循 [DLsite](https://www.dlsite.com/) 的官方翻译。DLfilter 是非官方工具，与 DLsite 无关。
-- 默认嵌入模型：[sonoisa/sentence-luke-japanese-base-lite](https://huggingface.co/sonoisa/sentence-luke-japanese-base-lite)。
-
-以 [MIT 许可证](LICENSE)发布。
