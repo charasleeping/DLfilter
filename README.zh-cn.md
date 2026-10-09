@@ -101,7 +101,7 @@ pip install -r requirements.txt
 
 3. 初始化数据库。有两种方式：
 - 从**[这里](https://drive.google.com/file/d/1Jod-iFufGW3lIyqttlws9hOqK4k79ha8/view?usp=sharing)**下载预先建好的数据库，并将内容解压到 `DLfilter/database/`（约 130 MB，解压后约 1 GB）
-> 预先建好的数据库更新至 2023-07-10。你之后可能想要[自行更新](docs/database.md#update-database)（英文文档）。
+> 预先建好的数据库更新至 2026-10-09。你之后可能想要[自行更新](docs/database.md#update-database)（英文文档）。
 
 - 自行初始化数据库。请参阅[这里](docs/database.md#initialize-database)（英文文档，另有[繁体中文版](docs/database.zh-tw.md)）。
 
