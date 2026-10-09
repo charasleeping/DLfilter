@@ -66,7 +66,11 @@ class SimilarityQuery(BaseModel):
         regex=r"^[0-9]{3}(?:\+[0-9]{3}){0,9}$",
         description="The target genres. The genres should be separated by `+`. The maximum is 10.",
     )
-    rj_id: str | None = Query(None, regex=r"^RJ(?:\d{8}|\d{6})$", description="The RJ ID of the reference work.")
+    rj_id: str | None = Query(
+        None,
+        pattern=r"^RJ(?:\d{8}|\d{6})$",
+        description="The RJ ID of the reference work.",
+    )
     date: datetime = datetime(2000, 1, 1)
     dlcount: int = Query(
         50,
@@ -124,8 +128,11 @@ async def root(request: Request):
     HTMLResponse
         The HTML response.
     """
-    return templates.TemplateResponse("index.html", {"request": request})
-
+    return templates.TemplateResponse(
+        request=request,
+        name="index.html",
+        context={"request": request},
+    )
 
 @app.get("/api/info")
 async def get_info() -> dict[str, Any]:
