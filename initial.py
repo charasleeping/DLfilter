@@ -1,10 +1,12 @@
 import os
 import argparse
-import sqlite3
-import json
 import pandas as pd
 from datetime import datetime, timedelta
+from module import config
+from module.database import export_works
 from module.dlsite import DLsiteCatalog, GenreCatalog
+
+LARGE_CRAWL_DAYS = 31
 
 parser = argparse.ArgumentParser(description="Initial and update work databases.")
 group = parser.add_mutually_exclusive_group(required=True)
@@ -27,11 +29,11 @@ group.add_argument(
     nargs="+",
     help="Set the start date and end date for crawling the website into database. Only crawl one day if one argument is provided.",
 )
-parser.add_argument("--path", default="database", help="The path of database.")
+parser.add_argument("--path", default=str(config.DATA_DIR), help="The path of database.")
 parser.add_argument(
     "--model",
-    default="sonoisa/sentence-luke-japanese-base-lite",
-    help="The name of language model. Example: sonoisa/sentence-luke-japanese-base-lite (default), distiluse-base-multilingual-cased-v2.",
+    default=config.DEFAULT_MODEL,
+    help="The name of language model or a local model directory. Example: sonoisa/sentence-luke-japanese-base-lite (default), distiluse-base-multilingual-cased-v2.",
 )
 parser.add_argument(
     "--no_genre",
@@ -83,6 +85,12 @@ if args.date:
     elif len(args.date) > 2:
         print("Error: Invalid date input.")
         exit()
+    if len(args.date) == 2:
+        days = (datetime.strptime(args.date[1], "%Y-%m-%d") - datetime.strptime(args.date[0], "%Y-%m-%d")).days + 1
+        if days > LARGE_CRAWL_DAYS:
+            flag = input(f"This will crawl {days} days ({args.date[0]} to {args.date[1]}). Continue? (Y/n) ")
+            if flag != "Y":
+                exit()
 
 # Find for the catalogue
 if os.path.isfile(os.path.join(args.path, "works_table.json")):
@@ -244,34 +252,8 @@ if args.init or not args.raw_only:
     df["rateCount"] = df["rateCount"].astype(int)
     df["reviewCount"] = df["reviewCount"].astype(int)
 
-    # Convert nested DLsite API values into SQLite-compatible JSON strings.
-    for column in df.columns:
-        if df[column].dtype == "object":
-            structured = df[column].map(
-                lambda value: isinstance(value, (dict, list, tuple))
-            )
-
-            if structured.any():
-                sample = df.loc[structured, column].iloc[0]
-                print(
-                    f"Serializing nested values in column {column!r} "
-                    f"(example type: {type(sample).__name__})"
-                )
-
-                df[column] = df[column].map(
-                    lambda value: json.dumps(value, ensure_ascii=False)
-                    if isinstance(value, (dict, list, tuple))
-                    else value
-                )
-
     print("Exporting SQLite database...")
-    db = sqlite3.connect(os.path.join(args.path, "works.sqlite"))
-    df.to_sql("maniax", db, if_exists="replace")
-    db.close()
-    print("Done.")
-
-    print("Exporting SQLite database...")
-    db = sqlite3.connect(os.path.join(args.path, "works.sqlite"))
-    df.to_sql("maniax", db, if_exists="replace")
-    db.close()
+    backup = export_works(df, os.path.join(args.path, "works.sqlite"))
+    if backup:
+        print(f"Previous database kept at {backup}.")
     print("Done.")

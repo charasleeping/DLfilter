@@ -1,25 +1,36 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel, constr
 from typing import Any, List
 from fastapi import FastAPI, Request, Query
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from sentence_transformers import util
+from module import config, presets, search
+from module.database import connect_readonly
 from module.dlsite import GenreCatalog
-from module.utils import dlCount_weight
+from module.utils import cos_sim, dlCount_weight
 import torch
 import numpy as np
+import logging
 import time
 import os
-import sqlite3
+
+logger = logging.getLogger("dlfilter")
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=config.STATIC_DIR), name="static")
 
-templates = Jinja2Templates(directory="templates")
-database_path = os.path.join("database", "works.sqlite")
-GG = GenreCatalog(target="", path="database")
+templates = Jinja2Templates(directory=config.TEMPLATES_DIR)
+
+
+def asset_url(path: str) -> str:
+    """URL of a static file with its modification time, so an edited file is never served from the browser cache."""
+    return f"{app.url_path_for('static', path=path)}?v={int((config.STATIC_DIR / path).stat().st_mtime)}"
+
+
+templates.env.globals["asset_url"] = asset_url
+database_path = config.DATABASE_PATH
+GG = GenreCatalog(target="", path=config.DATA_DIR)
 
 weigth_func_dict = {
     1: "r_logistic",
@@ -63,7 +74,7 @@ class SimilarityQuery(BaseModel):
 
     genres: str = Query(
         ...,
-        regex=r"^[0-9]{3}(?:\+[0-9]{3}){0,9}$",
+        pattern=r"^[0-9]{3}(?:\+[0-9]{3}){0,9}$",
         description="The target genres. The genres should be separated by `+`. The maximum is 10.",
     )
     rj_id: str | None = Query(
@@ -83,29 +94,29 @@ class SimilarityQuery(BaseModel):
     )
     ages: str = Query(
         "100",
-        regex=r"^[01]{3}$",
+        pattern=r"^[01]{3}$",
         description="The indicator of the age restriction, where the first char represents the all age, the second char represents the R15, and the third char represents the R18, i.e, `111` means all age, R15, and R18 are all included.",
     )
     excluded_low_rate: bool = True
     excluded_options: str | None = Query(
         "AIG+AIP+GRO+MEN",
-        regex=r"^(?:AIG|AIP|GRO|MEN)(?:\+(?:AIG|AIP|GRO|MEN))*$",
+        pattern=r"^(?:AIG|AIP|GRO|MEN)(?:\+(?:AIG|AIP|GRO|MEN))*$",
         description="The excluded options. The options should be separated by `+`, and the options can be `AIG`, `AIP`, `GRO`, and `MEN`.",
     )
     # excluding_interest: bool = False # TODO: Add this option
     categories: str | None = Query(
         None,
-        regex=r"^[A-Z0-9]{3}(\+[A-Z0-9]{3})*$",
+        pattern=r"^[A-Z0-9]{3}(\+[A-Z0-9]{3})*$",
         description="The target categories. The categories should be separated by `+`.",
     )
     included_genres: str | None = Query(
         None,
-        regex=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$",
+        pattern=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$",
         description="The included genres. The genres should be separated by `+`. Maximum is 5.",
     )
     excluded_genres: str | None = Query(
         None,
-        regex=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$",
+        pattern=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$",
         description="The excluded genres. The genres should be separated by `+`. Maximum is 5.",
     )
 
@@ -149,10 +160,10 @@ async def get_info() -> dict[str, Any]:
         lmt = os.path.getmtime(database_path)
 
         # Convert the timestamp to a human-readable format
-        lmt = datetime.utcfromtimestamp(lmt).strftime("%Y-%m-%d %H:%M:%S")
+        lmt = datetime.fromtimestamp(lmt, timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
         # Connect to the database
-        with sqlite3.connect(database_path) as conn:
+        with connect_readonly(database_path) as conn:
             # Create a cursor object to execute SQL queries
             cur = conn.cursor()
 
@@ -165,8 +176,9 @@ async def get_info() -> dict[str, Any]:
         # Return a dictionary containing the length of the database and the last modified time
         return {"state": "success", "length": length, "time": lmt}
 
-    except Exception as e:
-        return {"state": "error", "message": str(e)}
+    except Exception:
+        logger.exception("Failed to read database info from %s", database_path)
+        return {"state": "error", "message": "The database is unavailable."}
 
 
 @app.get("/api/locale/{locale}")
@@ -228,15 +240,16 @@ async def get_works(rj_id: List[RJ_ID_REGEX] = Query(..., description="The RJ ID
 
     Returns
     -------
-    List[dict]
-        The information of the works.
+    dict
+        `works` maps every requested ID to its information (`{}` when it is not in the local database),
+        and `missing` lists the requested IDs that were not found.
     """
     if len(rj_id) > 50:
         return {"state": "error", "message": "The maximum number of requesting works is 50."}
 
     try:
         # Connect to the database
-        with sqlite3.connect(database_path) as conn:
+        with connect_readonly(database_path) as conn:
             # Create a cursor object to execute SQL queries
             cur = conn.cursor()
 
@@ -248,17 +261,174 @@ async def get_works(rj_id: List[RJ_ID_REGEX] = Query(..., description="The RJ ID
 
             # Check if the works exists
             for work in result:
-                work = dict(zip([description[0] for description in cur.description], work))
-                work["tags"] = [i for i in work["tags"].split("#") if i]
-                work["options"] = [i for i in work["options"].split("#") if i]
-                work["registDate"] = work["registDate"].split(" ")[0]
+                work = search.format_work(dict(zip([description[0] for description in cur.description], work)))
                 result_dict[work["index"]] = work
 
-        # Return a dictionary containing the information of the work
-        return {"state": "success", "works": result_dict}
+        missing = [index for index, work in result_dict.items() if not work]
 
-    except Exception as e:
-        return {"state": "error", "message": str(e)}
+        # Return a dictionary containing the information of the work
+        return {"state": "success", "works": result_dict, "missing": missing}
+
+    except Exception:
+        logger.exception("Failed to look up works %s", rj_id)
+        return {"state": "error", "message": "Failed to read the database."}
+
+
+def search_error(code: str, message: str, status_code: int = 400) -> JSONResponse:
+    return JSONResponse(status_code=status_code, content={"state": "error", "code": code, "message": message})
+
+
+@app.get("/api/search")
+async def search_works(
+    q: str = "",
+    field: str = "all",
+    ages: str = "100",
+    page: int = 1,
+    page_size: int = search.DEFAULT_PAGE_SIZE,
+):
+    """
+    Search the local database by work title, circle name or RJ ID.
+
+    Parameters
+    ----------
+    q : str
+        The search text. Whitespace-separated terms must all match. Width and letter case are ignored.
+    field : str
+        `all`, `title`, `artist` (circle) or `id`.
+    ages : str
+        Three `0`/`1` flags for all-ages, R15 and R18. `000` means all ages.
+    page : int
+        The 1-based page number.
+    page_size : int
+        The number of works per page, at most 48.
+
+    Returns
+    -------
+    dict
+        The total number of matches and the works on the requested page.
+    """
+    query = q.strip()
+    if not query:
+        return search_error("empty_query", "Enter a title, circle name or RJ ID.")
+    if len(query) > search.MAX_QUERY_LENGTH:
+        return search_error("query_too_long", f"The search text must be at most {search.MAX_QUERY_LENGTH} characters.")
+    if field not in search.FIELDS:
+        return search_error("invalid_field", f"field must be one of: {', '.join(search.FIELDS)}.")
+    if len(ages) != 3 or set(ages) - {"0", "1"}:
+        return search_error("invalid_ages", "ages must be three 0/1 flags, e.g. 100.")
+    if not 1 <= page <= search.MAX_PAGE:
+        return search_error("invalid_page", f"page must be between 1 and {search.MAX_PAGE}.")
+    if not 1 <= page_size <= search.MAX_PAGE_SIZE:
+        return search_error("invalid_page_size", f"page_size must be between 1 and {search.MAX_PAGE_SIZE}.")
+
+    try:
+        with connect_readonly(database_path) as conn:
+            total, results = search.search(conn, query, field, ages, page, page_size)
+    except Exception:
+        logger.exception("Search failed for %r (field=%s)", query, field)
+        return search_error("database_error", "Failed to read the database.", status_code=500)
+
+    return {
+        "state": "success",
+        "source": "local",
+        "query": query,
+        "field": field,
+        "page": page,
+        "page_size": page_size,
+        "total": total,
+        "results": results,
+    }
+
+
+@app.get("/api/random")
+def get_random_works(
+    ages: str = "100",
+    count: int = search.DEFAULT_PAGE_SIZE,
+    categories: str | None = Query(None, pattern=r"^[A-Z0-9]{3}(?:\+[A-Z0-9]{3})*$"),
+    included_genres: str | None = Query(None, pattern=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$"),
+    excluded_genres: str | None = Query(None, pattern=r"^[0-9]{3}(?:\+[0-9]{3}){0,4}$"),
+    since: str | None = Query(None, pattern=r"^\d{4}-\d{2}-\d{2}$"),
+    excluded_low_rate: bool = False,
+    excluded_options: str | None = Query(None, pattern=r"^(?:AIG|AIP|GRO|MEN)(?:\+(?:AIG|AIP|GRO|MEN))*$"),
+):
+    """
+    Pick random works from the local database.
+
+    Parameters
+    ----------
+    ages : str
+        Three `0`/`1` flags for all-ages, R15 and R18. `000` means all ages.
+    count : int
+        The number of works, at most 48.
+    categories, included_genres, excluded_genres, since, excluded_low_rate, excluded_options
+        Optional filters with the same meaning as in the similarity search. `since` is a `YYYY-MM-DD` date.
+    """
+    if len(ages) != 3 or set(ages) - {"0", "1"}:
+        return search_error("invalid_ages", "ages must be three 0/1 flags, e.g. 100.")
+    if not 1 <= count <= search.MAX_PAGE_SIZE:
+        return search_error("invalid_count", f"count must be between 1 and {search.MAX_PAGE_SIZE}.")
+
+    split = lambda value: value.split("+") if value else []
+    try:
+        with connect_readonly(database_path) as conn:
+            results = search.random_works(
+                conn,
+                ages,
+                count,
+                categories=split(categories),
+                included_genres=split(included_genres),
+                excluded_genres=split(excluded_genres),
+                since=since,
+                excluded_low_rate=excluded_low_rate,
+                excluded_options=split(excluded_options),
+            )
+    except Exception:
+        logger.exception("Failed to pick random works")
+        return search_error("database_error", "Failed to read the database.", status_code=500)
+
+    return {"state": "success", "source": "local", "results": results}
+
+
+def invalid_preset_name() -> JSONResponse:
+    return search_error("invalid_name", "Use up to 60 letters, digits, spaces, - or _.")
+
+
+@app.get("/api/presets")
+def get_presets():
+    """List the presets saved in the presets folder, newest first."""
+    return {"state": "success", "folder": config.PRESETS_DIR.name, "presets": presets.list_presets(config.PRESETS_DIR)}
+
+
+@app.get("/api/presets/{name}")
+def get_preset(name: str):
+    """Read one preset."""
+    if not presets.valid_name(name):
+        return invalid_preset_name()
+    try:
+        preset = presets.load_preset(config.PRESETS_DIR, name)
+    except FileNotFoundError:
+        return search_error("not_found", "No preset has this name.", status_code=404)
+    except (ValueError, OSError):
+        logger.exception("Failed to read preset %r", name)
+        return search_error("invalid_preset", "The preset file could not be read.", status_code=422)
+    return {"state": "success", "name": name, "preset": preset.model_dump()}
+
+
+@app.put("/api/presets/{name}")
+def put_preset(name: str, preset: presets.Preset):
+    """Save a preset, replacing any preset with the same name."""
+    if not presets.valid_name(name):
+        return invalid_preset_name()
+    try:
+        presets.save_preset(config.PRESETS_DIR, name, preset)
+    except presets.TooManyPresets:
+        return search_error(
+            "too_many_presets", f"At most {presets.MAX_PRESETS} presets can be saved.", status_code=409
+        )
+    except OSError:
+        logger.exception("Failed to save preset %r", name)
+        return search_error("save_failed", "The preset could not be saved.", status_code=500)
+    return {"state": "success", "name": name}
 
 
 @app.post("/api/similarity")
@@ -335,7 +505,7 @@ async def get_similar_works(query: SimilarityQuery):
 
     ### EXECUTING THE QUERY ###
     # Connect to the database
-    with sqlite3.connect(database_path) as conn:
+    with connect_readonly(database_path) as conn:
         cur = conn.cursor()
         cur.execute(sql_query)
 
@@ -368,13 +538,13 @@ async def get_similar_works(query: SimilarityQuery):
     # print(f"Time elapsed in converting to tensors: {time.time() - start2} seconds.")
 
     # Calculate the cosine similarity
-    # top_k = min(240, len(result))
-    # similarity = util.semantic_search(query_embedding, works_embedding, top_k=len(result), query_chunk_size=1)[0]
-    similarity = util.cos_sim(query_embedding, works_embedding)[0]
+    similarity = cos_sim(query_embedding, works_embedding)
 
     # Weight the similarity by the dlCount if specified
     if query.dlcount != 50:
-        similarity *= dlCount_weight(query.dlcount, np.array([work["dlCount"] for work in result]), mu=2.09, std=1)
+        weights = dlCount_weight(query.dlcount, np.array([work["dlCount"] for work in result]), mu=2.09, std=1)
+        # float64, matching the legacy `tensor *= ndarray` result.
+        similarity = similarity.double() * torch.from_numpy(weights)
     top_similar_works = torch.topk(similarity, k=min(240, len(result)))
 
     similar_work_list = [(result[i]["index"], similarity[i].item()) for i in top_similar_works.indices]
@@ -387,3 +557,9 @@ async def get_similar_works(query: SimilarityQuery):
         "result": similar_work_list,
         "info": {"length": len(result), "time": time.time() - start},
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host=config.HOST, port=config.PORT)

@@ -1,0 +1,36 @@
+services:
+  # docker compose up -d   ->   http://localhost:8000/
+  dlfilter:
+    build: .
+    image: dlfilter
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./database:/data:ro
+      - presets:/presets  # saved search presets
+    restart: unless-stopped
+
+  # Update the database with a local copy of the embedding model (no model download):
+  #   DLFILTER_MODEL_DIR=/path/to/sonoisa_sentence-luke-japanese-base-lite \
+  #     docker compose --profile update run --rm update -u
+  # Stop the dlfilter service first; the export replaces works.sqlite.
+  update:
+    profiles: ["update"]
+    build:
+      context: .
+      args:
+        WITH_UPDATE: "1"
+    image: dlfilter-update
+    user: "${DLFILTER_UID:-1000}:${DLFILTER_GID:-1000}"
+    environment:
+      DLFILTER_MODEL: /model
+      HF_HUB_OFFLINE: "1"
+      HOME: /tmp
+    volumes:
+      - ./database:/data
+      - ${DLFILTER_MODEL_DIR:-./model}:/model:ro
+    entrypoint: ["python", "initial.py"]
+    command: ["-u"]
+
+volumes:
+  presets:

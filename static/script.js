@@ -21,7 +21,10 @@ const work_format_class = {
     "Miscellaneous": "light"
 }
 
-const version = "alpha 0.5";
+const version = "1.0";
+// slider position -> server weight function: lower popular genres, none, lower unpopular genres
+const popularity_weight_func = [1, 4, 2];
+const SUN_ICON = `<svg class="sun-icon" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
 const rjid_regex = /^RJ(?:\d{8}|\d{6})$/;
 const page_size = 48;
 
@@ -32,23 +35,29 @@ const months_from_start = (currentDate.getFullYear() - startDate.getFullYear()) 
 var locale_data = null;
 var current_page = 1;
 
-// check the language of the browser
+// use the language chosen with the language button, otherwise the language of the browser
 var lang_raw = navigator.language || navigator.userLanguage;
 // lang_raw = "ja-JP";
 var lang = lang_raw.replace("-", "_");
 if (supported_lang.indexOf(lang) == -1) {
     lang = "en_US";
 }
+try {
+    const saved_lang = localStorage.getItem("lang");
+    if (supported_lang.indexOf(saved_lang) != -1) {
+        lang = saved_lang;
+        lang_raw = saved_lang.replace("_", "-");
+    }
+} catch (e) { }
+document.documentElement.lang = lang.replace("_", "-");
+var info_data = null;
 
 $(document).ready(function () {
     // initialize the collapses
-    var collapse_carousel = new bootstrap.Collapse($("#carousel-container"), {
-        toggle: false
-    });
     var collapse_genres_container = new bootstrap.Collapse($("#collapse-genres-container"), {
         toggle: false
     });
-    var collapse_welcome_hint = new bootstrap.Collapse($("#welcome-start-hint"), {
+    var collapse_welcome_banner = new bootstrap.Collapse($("#welcome-banner"), {
         toggle: false
     });
     var collapse_result_card_container = new bootstrap.Collapse($("#result-card-container"), {
@@ -67,8 +76,8 @@ $(document).ready(function () {
         }
     });
     $.getJSON("/api/info", data => {
-        $("#banner-text").html(data.length);
-        $("#navbar-time").html(data.time);
+        info_data = data;
+        showInfo();
     });
 
     // go to top button
@@ -78,16 +87,32 @@ $(document).ready(function () {
         }, 500);
     });
 
-    // set up interaction for start text
-    $("#welcome-start-hint-genres").hover(function () {
-        $("#genre-title").css("color", "var(--bs-primary)");
-        $(".fa-tags").css("color", "var(--bs-primary)");
-    }, function () {
-        $("#genre-title").css("color", "");
-        $(".fa-tags").css("color", "");
-    });
-    $("#welcome-start-hint-workid").hover(function () {
-        $("#rjid").focus();
+    // search panel tabs: "keyword" (local catalogue search) or "similar" (similarity search)
+    function showSearchTab(tab) {
+        bootstrap.Tab.getOrCreateInstance(document.getElementById(`${tab}-tab`)).show();
+    }
+
+    // set up interaction for start text: hovering a term highlights where to type it
+    // (and its tab when that tab is not open); clicking opens the tab
+    const hint_targets = {
+        "welcome-start-hint-keywords": { tab: "keyword", target: "#catalog-query" },
+        "welcome-start-hint-genres": { tab: "similar", target: "#genre-title, #genre-title-icon" },
+        "welcome-start-hint-workid": { tab: "similar", target: "#rjid" },
+    };
+    $("#welcome-start-hint").on("mouseenter mouseleave", "span[id^=welcome-start-hint-]", function (event) {
+        const hint = hint_targets[this.id];
+        const on = event.type == "mouseenter";
+        $(hint.target).toggleClass("hint-highlight", on);
+        $(`#${hint.tab}-tab`).toggleClass("hint-highlight", on && !$(`#${hint.tab}-tab`).hasClass("active"));
+    }).on("click", "span[id^=welcome-start-hint-]", function () {
+        const hint = hint_targets[this.id];
+        $(`#${hint.tab}-tab`).removeClass("hint-highlight");
+        showSearchTab(hint.tab);
+        if (this.id == "welcome-start-hint-keywords") {
+            $("#catalog-query").focus();
+        } else if (this.id == "welcome-start-hint-workid") {
+            $("#rjid").focus();
+        }
     });
 
     // set up the range slider
@@ -103,9 +128,20 @@ $(document).ready(function () {
     $("#dlcount-reset-btn").click(function () {
         $("#dlcount-range").val(50);
     });
+    $("#popularity-weight-reset-btn").click(function () {
+        $("#popularity-weight-range").val(1);
+    });
+
+    // each advanced slider only applies while its switch is on
+    $(".advanced-option .form-switch input").on("change", function () {
+        const option = $(this).closest(".advanced-option");
+        option.toggleClass("is-off", !this.checked);
+        option.find("input[type=range]").prop("disabled", !this.checked);
+        option.find(".btn-add").toggleClass("disabled", !this.checked).attr("aria-disabled", !this.checked);
+    });
 
     // set up the genre when it is clicked
-    $("#genre-container").on("change", ".col-4 input[type=checkbox]", function () {
+    $("#genre-container").on("change", ".genre-item input[type=checkbox]", function () {
         var genre_id = $(this).val();
         var genre_type = $('#selected-genre-container').attr('data-genre-action');
         if (this.checked) {
@@ -115,7 +151,7 @@ $(document).ready(function () {
         }
     });
     // set up the work format when it is clicked
-    $("#categories-container").on("change", ".col-4 input[type=checkbox]", function () {
+    $("#categories-container").on("change", ".col-12 input[type=checkbox]", function () {
         var workformat_id = $(this).val();
         if (this.checked) {
             addWorkFormat(workformat_id);
@@ -184,18 +220,95 @@ $(document).ready(function () {
     });
 
     // toggle the light/dark mode
+    function applyTheme(theme) {
+        const isDark = theme == "dark";
+        const label = (isDark ? localisation.theme_to_light : localisation.theme_to_dark)[lang];
+        $("html").attr("data-bs-theme", theme);
+        $("#lang-toggle")
+            .toggleClass("btn-outline-light", isDark)
+            .toggleClass("btn-outline-dark", !isDark);
+        $("#dark-toggle")
+            .toggleClass("btn-outline-light", isDark)
+            .toggleClass("btn-outline-dark", !isDark)
+            .attr({ "aria-label": label, "title": label })
+            .html(isDark ? `<i class="fa-solid fa-moon"></i>` : SUN_ICON);
+    }
+
     $("#dark-toggle").click(function () {
-        // data-bs-theme
-        if ($("html").attr("data-bs-theme") == "dark") {
-            $("html").attr("data-bs-theme", "light");
-            $("#dark-toggle").removeClass("btn-outline-light").addClass("btn-outline-dark");
-            $("#dark-toggle").html(`<i class="fa-solid fa-moon"></i>`);
-        } else {
-            $("html").attr("data-bs-theme", "dark");
-            $("#dark-toggle").removeClass("btn-outline-dark").addClass("btn-outline-light");
-            $("#dark-toggle").html(`<i class="fa-solid fa-sun"></i>`);
+        const next = $("html").attr("data-bs-theme") == "dark" ? "light" : "dark";
+        if (!document.startViewTransition) {
+            applyTheme(next);
+            return;
         }
+        // normal motion: the new theme spreads out from the button as a circle
+        // reduced motion: the CSS keeps the default cross-fade instead
+        const rect = this.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+        const reduce_motion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const transition = document.startViewTransition(() => applyTheme(next));
+        if (reduce_motion) {
+            transition.ready.catch(() => { });
+            return;
+        }
+        transition.ready.then(() => {
+            document.documentElement.animate(
+                { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+                { duration: 600, easing: "ease-in-out", pseudoElement: "::view-transition-new(root)" }
+            );
+        }).catch(() => { });
     });
+
+    // catalogue age filter: summarise the ticked options on the dropdown button
+    function updateCatalogAgeSummary() {
+        const labels = [1, 2, 3]
+            .filter(i => $(`#catalog-age-${i}`).prop("checked"))
+            .map(i => $(`#catalog-age-${i}-label`).text());
+        $("#catalog-age-summary").text(labels.length ? labels.join(", ") : localisation.catalog_age_any[lang]);
+    }
+    $("#catalog-age-container").on("change", "input[type=checkbox]", updateCatalogAgeSummary);
+
+    // credits: reveal the text one character at a time (links stay intact)
+    function typeCredits(container) {
+        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        const text_nodes = [];
+        while (walker.nextNode()) {
+            text_nodes.push(walker.currentNode);
+        }
+        const chars = [];
+        text_nodes.forEach(node => {
+            const fragment = document.createDocumentFragment();
+            for (const ch of node.nodeValue) {
+                const span = document.createElement("span");
+                span.className = "tw-char";
+                span.textContent = ch;
+                chars.push(span);
+                fragment.appendChild(span);
+            }
+            node.replaceWith(fragment);
+        });
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            chars.forEach(span => span.classList.add("tw-on"));
+            return;
+        }
+        const caret = document.createElement("span");
+        caret.className = "tw-caret";
+        caret.setAttribute("aria-hidden", "true");
+        container.appendChild(caret);
+        let i = 0;
+        const timer = setInterval(() => {
+            if (i >= chars.length) {
+                clearInterval(timer);
+                setTimeout(() => caret.remove(), 1500);
+                return;
+            }
+            chars[i].classList.add("tw-on");
+            chars[i].after(caret);
+            i++;
+        }, 45);
+    }
+    typeCredits(document.getElementById("credits"));
 
     // when the genre is clicked, remove the genre
     $("#selected-genre-container").on("click", ".btn-genre", function () {
@@ -303,8 +416,7 @@ $(document).ready(function () {
                             // add the name to the search bar
                             $("#rjid-work-name").text(work_name);
                         } else {
-                            console.log(data["message"]);
-                            $("#rjid-work-name").text(localisation.work_not_found[lang]);
+                            $("#rjid-work-name").text(localisation.work_not_in_local_db[lang]);
                         }
                     } else {
                         console.log(data["message"]);
@@ -320,7 +432,7 @@ $(document).ready(function () {
                 timeout: 3000,
             });
         } else if (rjid == "") {
-            $("#rjid-work-name").text(localisation.work_input_hint[lang]);
+            $("#rjid-work-name").text("");
         } else {
             $("#rjid-work-name").text(localisation.work_input_hint_format[lang]);
         }
@@ -332,7 +444,7 @@ $(document).ready(function () {
         if ($(this).hasClass("active")) {
             return;
         }
-        $(".page-link").removeClass("active");
+        $("#pagination-container .page-link").removeClass("active");
         $(this).addClass("active");
         const page = $(this).text();
         collapse_result_card_container.hide();
@@ -363,8 +475,9 @@ $(document).ready(function () {
         $("#search-end-of-result").css("display", "none");
         $("#side-btn-container").css("display", "none");
         collapse_result_card_container.hide();
-        collapse_carousel.show();
-        collapse_welcome_hint.show();
+        if ($("#catalog-results-section").hasClass("d-none")) {
+            collapse_welcome_banner.show();
+        }
         setTimeout(function () {
             $("#search-result-container").empty();
         }, 500);
@@ -390,7 +503,453 @@ $(document).ready(function () {
         }
     });
 
+    // ---- local catalogue search (title / circle / RJ ID) ----
+    // Independent of the similarity search: own request counter, results, and pagination.
+    var catalog_request_id = 0;
+    var catalog_query = null;
+    // the last rendered catalogue results, kept to render them again in another language
+    var catalog_view = null;
+    var catalog_title_key = "catalog_results_title";
+
+    $("#catalog-search-form").on("submit", function (event) {
+        event.preventDefault();
+        const q = $("#catalog-query").val().trim();
+        if (q == "") {
+            $("#catalog-query").focus();
+            return;
+        }
+        catalog_query = {
+            q: q,
+            field: $("#catalog-field").val(),
+            ages: catalogAges(),
+        };
+        catalogSearch(1);
+    });
+
+    $("#catalog-pagination").on("click", ".page-item:not(.disabled):not(.active) .page-link", function () {
+        catalogSearch(parseInt($(this).attr("data-page"), 10));
+        $("#catalog-results-section").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+
+    $("#catalog-card-container").on("click", ".catalog-find-similar", function () {
+        // fill the RJ ID so its genres and format are loaded; the user starts the similarity search
+        $("#rjid").val($(this).attr("data-rjid")).trigger("keyup");
+        showSearchTab("similar");
+        $("#search-panel").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
+        $("#rjid").focus();
+    });
+
+    function startCatalogResults(title_key) {
+        catalog_view = null;
+        catalog_title_key = title_key;
+        $("#catalog-results-title").text(localisation[title_key][lang]);
+        $("#catalog-results-section").removeClass("d-none");
+        if ($("#welcome-banner").hasClass("show")) {
+            collapse_welcome_banner.hide();
+        }
+        $("#catalog-card-container, #catalog-pagination").empty();
+        $("#catalog-status").text(localisation.catalog_searching[lang]);
+        $("#catalog-spinner").removeClass("d-none");
+    }
+
+    function catalogAges() {
+        return [1, 2, 3].map(i => $(`#catalog-age-${i}`).prop("checked") ? "1" : "0").join("");
+    }
+
+    function catalogSearch(page) {
+        const request_id = ++catalog_request_id;
+        startCatalogResults("catalog_results_title");
+
+        $.ajax({
+            url: "/api/search",
+            dataType: "json",
+            data: { ...catalog_query, page: page, page_size: page_size },
+            timeout: 20000,
+            success: function (data) {
+                if (request_id != catalog_request_id) {
+                    return;  // a newer search has started
+                }
+                $("#catalog-spinner").addClass("d-none");
+                catalog_view = { kind: "search", data: data };
+                renderCatalogResults(data);
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                if (request_id != catalog_request_id) {
+                    return;
+                }
+                console.log(xhr.status, xhr.responseJSON ? xhr.responseJSON.message : thrownError);
+                $("#catalog-spinner").addClass("d-none");
+                $("#catalog-status").text(localisation.catalog_error[lang]);
+            },
+        });
+    }
+
+    function renderCatalogResults(data) {
+        if (data.results.length == 0) {
+            $("#catalog-status").text(localisation.catalog_no_results[lang]);
+            renderCatalogPagination(data.page, Math.ceil(data.total / data.page_size));
+            return;
+        }
+        const start = (data.page - 1) * data.page_size + 1;
+        const end = start + data.results.length - 1;
+        $("#catalog-status").html(localisation.catalog_summary[lang]
+            .replace("{total}", Number(data.total).toLocaleString(lang_raw))
+            .replace("{start}", Number(start).toLocaleString(lang_raw))
+            .replace("{end}", Number(end).toLocaleString(lang_raw)));
+
+        const label = localisation.catalog_find_similar[lang];
+        $("#catalog-card-container").append(data.results.map(work => catalogCardTemplate(work, label)));
+        renderCatalogPagination(data.page, Math.ceil(data.total / data.page_size));
+    }
+
+    function renderCatalogPagination(current, page_count) {
+        const container = $("#catalog-pagination").empty();
+        if (page_count <= 1) {
+            return;
+        }
+        const item = (label, page, state, aria_label) => {
+            const link = $("<button>", { "type": "button", "class": "page-link", "data-page": page }).text(label);
+            if (aria_label) {
+                link.attr("aria-label", aria_label);
+            }
+            if (state == "active") {
+                link.attr("aria-current", "page");
+            }
+            return $("<li>", { "class": `page-item ${state || ""}` }).append(link);
+        };
+
+        // first, last, and two pages either side of the current one
+        const pages = [...new Set([1, current - 2, current - 1, current, current + 1, current + 2, page_count])]
+            .filter(p => p >= 1 && p <= page_count)
+            .sort((a, b) => a - b);
+
+        container.append(item("‹", current - 1, current == 1 ? "disabled" : "", localisation.catalog_previous_page[lang]));
+        let previous = 0;
+        pages.forEach(p => {
+            if (p - previous > 1) {
+                container.append(item("…", "", "disabled"));
+            }
+            container.append(item(p, p, p == current ? "active" : ""));
+            previous = p;
+        });
+        container.append(item("›", current + 1, current == page_count ? "disabled" : "", localisation.catalog_next_page[lang]));
+    }
+
+    // ---- random works from the local database ----
+    // on the keyword tab only the catalogue age filter applies; on the similar tab the similarity filters apply
+    $("#random-works-btn").click(() => randomWorks({ ages: catalogAges() }));
+    $("#similar-random-btn").click(() => randomWorks(similarFilters()));
+
+    function randomWorks(filters) {
+        const request_id = ++catalog_request_id;
+        startCatalogResults("random_results_title");
+        $("#result-panel").scrollTop(0);
+
+        $.ajax({
+            url: "/api/random",
+            dataType: "json",
+            data: { ...filters, count: page_size },
+            timeout: 20000,
+            success: function (data) {
+                if (request_id != catalog_request_id) {
+                    return;
+                }
+                $("#catalog-spinner").addClass("d-none");
+                catalog_view = { kind: "random", data: data };
+                renderRandomResults(data);
+            },
+            error: function (xhr, ajaxOptions, thrownError) {
+                if (request_id != catalog_request_id) {
+                    return;
+                }
+                console.log(xhr.status, xhr.responseJSON ? xhr.responseJSON.message : thrownError);
+                $("#catalog-spinner").addClass("d-none");
+                $("#catalog-status").text(localisation.catalog_error[lang]);
+            },
+        });
+    }
+
+    function renderRandomResults(data) {
+        if (data.results.length == 0) {
+            $("#catalog-status").text(localisation.catalog_no_results[lang]);
+            return;
+        }
+        $("#catalog-status").text(localisation.random_summary[lang]
+            .replace("{count}", Number(data.results.length).toLocaleString(lang_raw)));
+        const label = localisation.catalog_find_similar[lang];
+        $("#catalog-card-container").append(data.results.map(work => catalogCardTemplate(work, label)));
+    }
+
+    // render the catalogue results again, e.g. after the language changed
+    function refreshCatalogView() {
+        if (!catalog_view) {
+            return;
+        }
+        $("#catalog-card-container, #catalog-pagination").empty();
+        $("#catalog-results-title").text(localisation[catalog_title_key][lang]);
+        if (catalog_view.kind == "search") {
+            renderCatalogResults(catalog_view.data);
+        } else {
+            renderRandomResults(catalog_view.data);
+        }
+    }
+
+    // the filters of the similarity search; the genres to look for and the popularity weights are not filters
+    function excludedOptions() {
+        return [[2, "AIG"], [3, "AIP"], [4, "GRO"], [5, "MEN"]]
+            .filter(([i]) => $(`#misc-checkbox-${i}`).prop("checked"))
+            .map(([, option]) => option).join("+");
+    }
+
+    function similarFilters() {
+        const filters = {
+            ages: [1, 2, 3].map(i => $(`#age-checkbox-${i}`).prop("checked") ? "1" : "0").join(""),
+            excluded_low_rate: $("#misc-checkbox-1").prop("checked"),
+        };
+        const lists = {
+            categories: [...search_categories],
+            included_genres: [...search_genres.included].slice(0, 5),
+            excluded_genres: [...search_genres.excluded].slice(0, 5),
+        };
+        for (const key in lists) {
+            if (lists[key].length > 0) {
+                filters[key] = lists[key].join("+");
+            }
+        }
+        if ($("#date-range-enabled").prop("checked")) {
+            const date = monthFunc(months_from_start, $("#date-range").val());
+            filters.since = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        }
+        if (excludedOptions()) {
+            filters.excluded_options = excludedOptions();
+        }
+        return filters;
+    }
+
+    // ---- reset: clear every search and go back to the welcome page ----
+    $("#reset-search-btn, #similar-reset-btn").click(function () {
+        catalog_request_id++;
+        catalog_query = null;
+        catalog_view = null;
+        $("#catalog-search-form").get(0).reset();
+        updateCatalogAgeSummary();
+        $("#catalog-results-section").addClass("d-none");
+        $("#catalog-card-container, #catalog-pagination").empty();
+        $("#catalog-spinner").addClass("d-none");
+
+        similarity_request_id++;
+        applyPreset(default_preset);
+        $("#loading-spinner-container, #search-info").addClass("visually-hidden");
+        $("#pagination-container").empty();
+        $("#search-end-of-result").css("display", "none");
+        $("#side-btn-container").css("display", "none");
+        collapse_result_card_container.hide();
+
+        collapse_welcome_banner.show();
+        $("#result-panel").scrollTop(0);
+    });
+
+    // ---- presets: the similarity search settings, saved as JSON files in the presets folder ----
+    const preset_name_regex = /^[\p{L}\p{N}\p{M}_\- ]{1,60}$/u;
+    let last_preset_name = "";
+
+    function currentPreset() {
+        const slider = (switch_id, range_id) => ({
+            enabled: $(switch_id).prop("checked"),
+            value: parseInt($(range_id).val(), 10),
+        });
+        const rj_id = $("#rjid").val().trim().toUpperCase();
+        return {
+            rj_id: rjid_regex.test(rj_id) ? rj_id : "",
+            genres: [...search_genres.add],
+            included_genres: [...search_genres.included],
+            excluded_genres: [...search_genres.excluded],
+            categories: [...search_categories],
+            popularity_weight: slider("#popularity-weight-enabled", "#popularity-weight-range"),
+            release_date: slider("#date-range-enabled", "#date-range"),
+            download_count: slider("#dlcount-range-enabled", "#dlcount-range"),
+            ages: [1, 2, 3].map(i => $(`#age-checkbox-${i}`).prop("checked")),
+            excluded_contents: [1, 2, 3, 4, 5].map(i => $(`#misc-checkbox-${i}`).prop("checked")),
+            advanced_options_open: $("#advanced-options-panel").hasClass("show"),
+        };
+    }
+    const default_preset = currentPreset();
+
+    // presets may come from any file, so only known ids and well-formed values are used
+    function applyPreset(preset) {
+        preset = { ...default_preset, ...preset };
+        const ids = value => Array.isArray(value) ? value.map(String) : [];
+        const known = table => id => locale_data != null && Object.hasOwn(locale_data[table], id);
+
+        ["add", "included", "excluded"].forEach(type => {
+            [...search_genres[type]].forEach(id => removeGenre(type, id));
+        });
+        [...search_categories].forEach(id => removeWorkFormat(id));
+        $("#categories-container input[type=checkbox]").prop("checked", false);
+
+        ids(preset.genres).filter(known("genres")).forEach(id => addGenre("add", id));
+        ids(preset.included_genres).filter(known("genres")).forEach(id => addGenre("included", id));
+        ids(preset.excluded_genres).filter(known("genres")).forEach(id => addGenre("excluded", id));
+        ids(preset.categories).filter(known("work_formats")).forEach(id => {
+            addWorkFormat(id);
+            $(`#workformat-${id}`).prop("checked", true);
+        });
+
+        // set the RJ ID without its keyup handler, which would replace the genres
+        const rj_id = typeof preset.rj_id == "string" && rjid_regex.test(preset.rj_id) ? preset.rj_id : "";
+        $("#rjid").val(rj_id);
+        showWorkName(rj_id);
+
+        const slider = (option, switch_id, range_id) => {
+            option = option || {};
+            if (Number.isFinite(Number(option.value))) {
+                $(range_id).val(Number(option.value));  // the range input clamps it
+            }
+            $(switch_id).prop("checked", option.enabled === true).trigger("change");
+        };
+        slider(preset.popularity_weight, "#popularity-weight-enabled", "#popularity-weight-range");
+        slider(preset.release_date, "#date-range-enabled", "#date-range");
+        slider(preset.download_count, "#dlcount-range-enabled", "#dlcount-range");
+        setDateRangeText($("#date-range").val());
+
+        const flags = (value, count) => Array.isArray(value) && value.length == count ? value : [];
+        flags(preset.ages, 3).forEach((on, i) => $(`#age-checkbox-${i + 1}`).prop("checked", on === true));
+        flags(preset.excluded_contents, 5).forEach((on, i) => $(`#misc-checkbox-${i + 1}`).prop("checked", on === true));
+
+        const panel = bootstrap.Collapse.getOrCreateInstance("#advanced-options-panel", { toggle: false });
+        if (preset.advanced_options_open === true) {
+            panel.show();
+        } else {
+            panel.hide();
+        }
+    }
+
+    function showWorkName(rj_id) {
+        if (rj_id == "") {
+            $("#rjid-work-name").text("");
+            return;
+        }
+        $.getJSON("/api/works", { rj_id: rj_id }).done(data => {
+            if ($("#rjid").val() != rj_id) {
+                return;
+            }
+            const work = data.state == "success" ? data.works[rj_id] : null;
+            $("#rjid-work-name").text(work && work.name ? work.name : localisation.work_not_in_local_db[lang]);
+        }).fail(() => $("#rjid-work-name").text(localisation.error_occurred[lang]));
+    }
+
+    function presetError(xhr) {
+        if (xhr.status == 400) {
+            return localisation.preset_name_invalid[lang];
+        }
+        return xhr.status == 409 ? localisation.preset_too_many[lang] : localisation.preset_save_failed[lang];
+    }
+
+    $("#preset-save-modal").on("show.bs.modal", function () {
+        $("#preset-name").val(last_preset_name).removeClass("is-invalid");
+        $.getJSON("/api/presets").done(data => {
+            $("#preset-name-list").empty().append(data.presets.map(preset => $("<option>", { value: preset.name })));
+        });
+    }).on("shown.bs.modal", function () {
+        $("#preset-name").trigger("focus").trigger("select");
+    });
+    $("#preset-name").on("input", function () {
+        $(this).removeClass("is-invalid");
+    });
+
+    $("#preset-save-form").on("submit", function (event) {
+        event.preventDefault();
+        const name = $("#preset-name").val().trim();
+        const fail = message => {
+            $("#preset-save-error").text(message);
+            $("#preset-name").addClass("is-invalid").trigger("focus");
+        };
+        if (!preset_name_regex.test(name)) {
+            fail(localisation.preset_name_invalid[lang]);
+            return;
+        }
+        $("#preset-save-submit").prop("disabled", true);
+        $.ajax({
+            type: "PUT",
+            url: `/api/presets/${encodeURIComponent(name)}`,
+            data: JSON.stringify(currentPreset()),
+            contentType: "application/json",
+            dataType: "json",
+            timeout: 10000,
+        }).done(() => {
+            last_preset_name = name;
+            bootstrap.Modal.getOrCreateInstance("#preset-save-modal").hide();
+            const icon = $("#preset-save-btn i").attr("class", "fa-solid fa-check");
+            setTimeout(() => icon.attr("class", "fa-solid fa-floppy-disk"), 1500);
+        }).fail(xhr => fail(presetError(xhr))).always(() => {
+            $("#preset-save-submit").prop("disabled", false);
+        });
+    });
+
+    function setPresetStatus(text, is_error) {
+        $("#preset-list-status").text(text).toggleClass("d-none", text == "").toggleClass("text-danger", Boolean(is_error));
+    }
+
+    function finishPresetLoad(preset, name) {
+        applyPreset(preset);
+        last_preset_name = name;
+        bootstrap.Modal.getOrCreateInstance("#preset-load-modal").hide();
+        showSearchTab("similar");
+    }
+
+    $("#preset-load-modal").on("show.bs.modal", function () {
+        const list = $("#preset-list").empty();
+        setPresetStatus(localisation.catalog_searching[lang]);
+        $.getJSON("/api/presets").done(data => {
+            $("#preset-folder").text(`${data.folder}/`);
+            if (data.presets.length == 0) {
+                setPresetStatus(localisation.preset_none[lang]);
+                return;
+            }
+            setPresetStatus("");
+            list.append(data.presets.map(preset => $("<button>", {
+                "type": "button",
+                "class": "list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3",
+                "data-preset": preset.name,
+            }).append(
+                $("<span>", { "class": "text-break" }).text(preset.name),
+                $("<small>", { "class": "text-body-secondary text-nowrap" })
+                    .text(new Date(preset.modified).toLocaleString(lang_raw, { dateStyle: "medium", timeStyle: "short" }))
+            )));
+        }).fail(() => setPresetStatus(localisation.preset_load_failed[lang], true));
+    });
+
+    $("#preset-list").on("click", "button[data-preset]", function () {
+        const name = $(this).attr("data-preset");
+        $.getJSON(`/api/presets/${encodeURIComponent(name)}`)
+            .done(data => finishPresetLoad(data.preset, name))
+            .fail(() => setPresetStatus(localisation.preset_load_failed[lang], true));
+    });
+
+    // a preset file from somewhere else is read in the browser only
+    $("#preset-file-btn").click(function () {
+        $("#preset-file-input").val("").trigger("click");
+    });
+    $("#preset-file-input").on("change", function () {
+        const file = this.files[0];
+        if (!file) {
+            return;
+        }
+        if (file.size > 100000) {
+            setPresetStatus(localisation.preset_load_failed[lang], true);
+            return;
+        }
+        file.text().then(text => {
+            const preset = JSON.parse(text);
+            if (preset == null || typeof preset != "object" || Array.isArray(preset)) {
+                throw new Error("not a preset");
+            }
+            finishPresetLoad(preset, file.name.replace(/\.json$/i, ""));
+        }).catch(() => setPresetStatus(localisation.preset_load_failed[lang], true));
+    });
+
     // post the search data to the server
+    var similarity_request_id = 0;
     $("#search-btn").click(function () {
         const rjid_val = $("#rjid").val().toUpperCase();
         const rj_id = rjid_regex.test(rjid_val) ? rjid_val : null;
@@ -405,38 +964,22 @@ $(document).ready(function () {
             return;
         }
 
-        // set the excluded options
-        excluded_options = new Set();
-        if ($("#misc-checkbox-2").prop("checked")) {
-            excluded_options.add("AIG");
-        }
-        if ($("#misc-checkbox-3").prop("checked")) {
-            excluded_options.add("AIP");
-        }
-        if ($("#misc-checkbox-4").prop("checked")) {
-            excluded_options.add("GRO");
-        }
-        if ($("#misc-checkbox-5").prop("checked")) {
-            excluded_options.add("MEN");
-        }
-        excluded_options = Array.from(excluded_options).join("+") || null;
+        const excluded_options = excludedOptions() || null;
 
         // hide the result container and show the loading animation
         $("#loading-spinner-container").removeClass("visually-hidden");
         if (!$("#search-info").hasClass("visually-hidden")) {
             $("#search-info").addClass("visually-hidden");
         }
-        if ($("#carousel-container").hasClass("show")) {
-            collapse_carousel.hide();
-        }
-        if ($("#welcome-start-hint").hasClass("show")) {
-            collapse_welcome_hint.hide();
+        if ($("#welcome-banner").hasClass("show")) {
+            collapse_welcome_banner.hide();
         }
         if ($("#result-card-container").hasClass("show")) {
             collapse_result_card_container.hide();
         }
 
         // send the search data to the server
+        const request_id = ++similarity_request_id;
         $.ajax({
             type: "POST",
             url: "/api/similarity",
@@ -447,15 +990,18 @@ $(document).ready(function () {
                 rj_id: rj_id,
                 categories: Array.from(search_categories).join("+") || null,
                 ages: `${$("#age-checkbox-1").prop("checked") ? "1" : "0"}${$("#age-checkbox-2").prop("checked") ? "1" : "0"}${$("#age-checkbox-3").prop("checked") ? "1" : "0"}`,
-                date: monthFunc(months_from_start, $("#date-range").val()),
-                dlcount: $("#dlcount-range").val(),
-                weight_func: $("#genre-weight-select").val(),
+                date: monthFunc(months_from_start, $("#date-range-enabled").prop("checked") ? $("#date-range").val() : 0),
+                dlcount: $("#dlcount-range-enabled").prop("checked") ? $("#dlcount-range").val() : 50,
+                weight_func: $("#popularity-weight-enabled").prop("checked") ? popularity_weight_func[$("#popularity-weight-range").val()] : popularity_weight_func[1],
                 excluded_low_rate: $("#misc-checkbox-1").prop("checked"),
                 excluded_options: excluded_options,
                 // "excluding_interest"
             }),
             contentType: "application/json",
             success: function (data) {
+                if (request_id != similarity_request_id) {
+                    return;  // reset while searching
+                }
                 if (data.state == "success") {
                     // save to local storage
                     localStorage.setItem("last_search_result_info", JSON.stringify(data.info));
@@ -468,7 +1014,7 @@ $(document).ready(function () {
                         $("#pagination-container").append(`<li class="page-item"><a class="page-link" href="#">${i}</a></li>`);
                     }
                     // make the first page active
-                    $(".page-link").first().addClass("active");
+                    $("#pagination-container .page-link").first().addClass("active");
 
                     // get the data of the first page
                     getSearchResults(1, success => {
@@ -507,7 +1053,7 @@ $(document).ready(function () {
     function setLocaleText(lang) {
         $("#search-title").text(localisation_words.search[lang]);
         $("#rjid").attr("placeholder", localisation.work_input[lang]);
-        $("#rjid-work-name").text(localisation.work_input_hint[lang]);
+        $("#rjid-title").text(localisation.rjid_title[lang]);
         $("#search-btn-label").text(localisation_words.search[lang]);
         $("#genre-title").text(localisation.genre_title[lang]);
         $("#genre-add-container-hint").text(localisation.at_least_one_genre[lang]);
@@ -536,13 +1082,14 @@ $(document).ready(function () {
         $("#misc-checkbox-3-label").text(localisation.misc_checkbox_3[lang]);
         $("#misc-checkbox-4-label").text(localisation.misc_checkbox_4[lang]);
         $("#misc-checkbox-5-label").text(localisation.misc_checkbox_5[lang]);
-        $("#genre-weight-title").text(localisation.genre_weight_title[lang]);
-        $("#genre-weight-option-1").text(localisation.genre_weight_option_1[lang]);
-        $("#genre-weight-option-2").text(localisation.genre_weight_option_2[lang]);
-        $("#genre-weight-option-3").text(localisation.genre_weight_option_3[lang]);
-        $("#genre-weight-option-4").text(localisation.genre_weight_option_4[lang]);
+        $("#popularity-weight-title").text(localisation.popularity_weight_title[lang]);
+        $("#popularity-weight-label-1").text(localisation.popularity_weight_label_1[lang]);
+        $("#popularity-weight-label-2").text(localisation.popularity_weight_label_2[lang]);
+        $("#popularity-weight-enabled").attr("aria-label", localisation.popularity_weight_title[lang]);
+        $("#date-range-enabled").attr("aria-label", localisation.date_title[lang]);
+        $("#dlcount-range-enabled").attr("aria-label", localisation.dlcount_title[lang]);
         $("#welcome-title").text(localisation.welcome_title[lang]);
-        $("#welcome-version").text(`/${version}`);
+        $("#welcome-version").text(`ver ${version}`);
         $("#welcome-subtitle").text(localisation.welcome_subtitle[lang]);
         $("#welcome-start-hint").html(localisation.welcome_start_hint[lang]);
         $("#welcome-start-hint-genres").attr("data-bs-toggle", "modal");
@@ -550,6 +1097,126 @@ $(document).ready(function () {
         $("#welcome-start-hint-genres").attr("data-genre-action", "add");
         $("#welcome-info").html(localisation.welcome_info[lang]);
         $("#search-info").html(localisation.search_info[lang]);
+        $("#catalog-title").text(localisation.catalog_title[lang]);
+        $("#catalog-query").attr("placeholder", localisation.catalog_placeholder[lang]);
+        $("#catalog-field").attr("aria-label", localisation.catalog_field_label[lang]);
+        $("#catalog-field-all").text(localisation.catalog_field_all[lang]);
+        $("#catalog-field-title").text(localisation.catalog_field_title[lang]);
+        $("#catalog-field-artist").text(localisation.catalog_field_artist[lang]);
+        $("#catalog-field-id").text(localisation.catalog_field_id[lang]);
+        $("#catalog-search-btn").attr("aria-label", localisation_words.search[lang]);
+        $("#catalog-age-btn-label").text(localisation.age_title[lang]);
+        $("#catalog-age-1-label").text(localisation.age_checkbox_1[lang]);
+        $("#catalog-age-2-label").text(localisation.age_checkbox_2[lang]);
+        $("#catalog-age-3-label").text(localisation.age_checkbox_3[lang]);
+        updateCatalogAgeSummary();
+        applyTheme($("html").attr("data-bs-theme"));
+        const next_lang = language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length];
+        const language_label = `${localisation.language_button[lang]}: ${language_names[lang]} → ${language_names[next_lang]}`;
+        $("#lang-toggle")
+            .attr({ "aria-label": language_label, "title": language_label })
+            .html($("<span>", { "class": "lang-glyph" }).text(language_glyphs[next_lang]));
+        $("#similar-reset-label").text(localisation.reset_label[lang]);
+        $("#similar-random-label").text(localisation.random_label[lang]);
+        $("#catalog-hint").html(localisation.catalog_hint[lang]);
+        $("#catalog-results-title").text(localisation[catalog_title_key || "catalog_results_title"][lang]);
+        $("#keyword-tab-label").text(localisation.search_tab_keywords[lang]);
+        $("#similar-tab-label").text(localisation.catalog_find_similar[lang]);
+        const titles = {
+            "#reset-search-btn, #similar-reset-btn": localisation.reset_search[lang],
+            "#random-works-btn, #similar-random-btn": localisation.random_works[lang],
+            "#preset-save-btn": localisation.preset_save[lang],
+            "#preset-load-btn": localisation.preset_load[lang],
+        };
+        for (const id in titles) {
+            $(id).attr({ "title": titles[id], "aria-label": titles[id] });
+        }
+        $("#preset-save-modal-title").text(localisation.preset_save[lang]);
+        $("#preset-load-modal-title").text(localisation.preset_load[lang]);
+        $("#preset-name-label").text(localisation.preset_name[lang]);
+        $("#preset-save-hint").text(localisation.preset_save_hint[lang]);
+        $("#preset-save-submit-label").text(localisation.preset_save_button[lang]);
+        $("#preset-save-cancel, #preset-load-cancel").text(localisation.cancel[lang]);
+        $("#preset-file-btn-label").text(localisation.preset_open_file[lang]);
+    }
+
+    // ---- language button: English -> Japanese -> Traditional Chinese -> Simplified Chinese -> English ----
+    var locale_request_id = 0;
+
+    function showInfo() {
+        if (info_data) {
+            $("#banner-text").html(info_data.length);
+            $("#navbar-time").html(info_data.time);
+        }
+    }
+
+    $("#lang-toggle").click(function () {
+        const old_glyph = this.firstElementChild ? this.firstElementChild.cloneNode(true) : null;
+        changeLanguage(language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length]);
+        if (!old_glyph || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            return;
+        }
+        // the previous glyph leaves to the left while the next one comes in from the right
+        const options = { duration: 320, easing: "ease-in-out" };
+        old_glyph.classList.add("lang-glyph-old");
+        this.append(old_glyph);
+        old_glyph.animate([{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-150%)", opacity: 0 }], options)
+            .finished.then(() => old_glyph.remove());
+        this.firstElementChild.animate([{ transform: "translateX(150%)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], options);
+    });
+
+    function changeLanguage(next) {
+        lang = next;
+        lang_raw = next.replace("_", "-");
+        try {
+            localStorage.setItem("lang", lang);
+        } catch (e) { }
+        document.documentElement.lang = lang_raw;
+
+        // texts of the page (this also resets the info lines, which are filled in again below)
+        setLocaleText(lang);
+        showInfo();
+        setDateRangeText($("#date-range").val());
+        if (!$("#search-info").hasClass("visually-hidden")) {
+            const result_info = JSON.parse(localStorage.getItem("last_search_result_info"));
+            if (result_info) {
+                $("#search-info-count").text(result_info.length);
+                $("#search-info-time").text(Math.round(result_info.time * 100) / 100);
+            }
+        }
+        const rjid = $("#rjid").val().toUpperCase();
+        if (rjid != "" && !rjid_regex.test(rjid)) {
+            $("#rjid-work-name").text(localisation.work_input_hint_format[lang]);
+        } else if (rjid != "") {
+            showWorkName(rjid);
+        }
+
+        // names of the genres and work formats come from the server, in the chosen language
+        const request_id = ++locale_request_id;
+        $.getJSON("/api/locale/" + lang, data => {
+            if (request_id != locale_request_id || data.state != "success") {
+                return;
+            }
+            locale_data = data.locale;
+            setGenreLocale(locale_data);
+            setWorkFormatLocale(locale_data);
+            $("#genre-search-bar").trigger("keyup");
+            search_categories.forEach(id => $(`#workformat-${id}`).prop("checked", true));
+
+            const rename_tags = (selector, attribute, table) => $(selector).each(function () {
+                const item = locale_data[table][$(this).attr(attribute)];
+                if (item) {
+                    $(this).html(`${item.name} <i class="fa-solid fa-xmark"></i>`);
+                }
+            });
+            rename_tags("a[data-genre-value]", "data-genre-value", "genres");
+            rename_tags("a[data-workformat-value]", "data-workformat-value", "work_formats");
+
+            refreshCatalogView();
+            if (!$("#search-info").hasClass("visually-hidden") && localStorage.getItem("last_search_result_list")) {
+                getSearchResults(current_page, () => { });
+            }
+        });
     }
 
     function addGenre(genre_type, genre_id) {
@@ -773,7 +1440,7 @@ function setGenreLocale(locale_data) {
         for (const genre_id in genre_locale_dict[category]) {
             const genre = genre_locale_dict[category][genre_id];
             category_html.append(
-                $("<div>", { "class": "col-4 form-check" }).append(
+                $("<div>", { "class": "genre-item form-check" }).append(
                     $("<input>", {
                         "class": "form-check-input focus-ring",
                         "type": "checkbox",
@@ -837,7 +1504,7 @@ function setWorkFormatLocale(locale_data) {
         for (const work_format_id in work_format_locale_dict[category]) {
             const work_format_name = work_format_locale_dict[category][work_format_id];
             category_html.append(
-                $("<div>", { "class": "col-4 form-check" }).append(
+                $("<div>", { "class": "col-12 form-check" }).append(
                     $("<input>", {
                         "class": "form-check-input",
                         "type": "checkbox",

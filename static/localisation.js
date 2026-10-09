@@ -1,4 +1,19 @@
 const supported_lang = ["en_US", "ja_JP", "zh_CN", "zh_TW"];
+// the order the language button cycles through
+const language_cycle = ["en_US", "ja_JP", "zh_TW", "zh_CN"];
+const language_names = {
+    en_US: "English",
+    ja_JP: "日本語",
+    zh_TW: "繁體中文",
+    zh_CN: "简体中文"
+};
+// one glyph per language, shown on the button that switches to it
+const language_glyphs = {
+    en_US: "A",
+    ja_JP: "あ",
+    zh_TW: "繁",
+    zh_CN: "简"
+};
 const localisation_words = {
     search: {
         en_US: "Search",
@@ -12,15 +27,17 @@ const localisation_words = {
         en_US_plural: "genres",
         en_US_plural_capital: "Genres",
         ja_JP: "ジャンル",
-        zh_CN: "属性",
-        zh_TW: "屬性"
+        zh_CN: "分类",
+        zh_TW: "分類"
     },
     workformat: {
-        en_US: "work format",
-        en_US_capital: "Work format",
+        en_US: "product format",
+        en_US_capital: "Product format",
+        en_US_plural: "product formats",
+        en_US_plural_capital: "Product formats",
         ja_JP: "作品形式",
-        zh_CN: "作品类型",
-        zh_TW: "作品類型"
+        zh_CN: "作品形式",
+        zh_TW: "作品形式"
     },
     zero: {
         en_US: "zero",
@@ -69,13 +86,13 @@ const localisation = {
         zh_TW: localisation_words.genre.zh_TW
     },
     workformat_title: {
-        en_US: localisation_words.workformat.en_US_capital,
+        en_US: localisation_words.workformat.en_US_plural_capital,
         ja_JP: localisation_words.workformat.ja_JP,
         zh_CN: localisation_words.workformat.zh_CN,
         zh_TW: localisation_words.workformat.zh_TW
     },
     workformat_modal_title: {
-        en_US: `Select ${localisation_words.workformat.en_US}`,
+        en_US: `Select ${localisation_words.workformat.en_US_plural}`,
         ja_JP: `${localisation_words.workformat.ja_JP}を選択`,
         zh_CN: `选择${localisation_words.workformat.zh_CN}`,
         zh_TW: `選擇${localisation_words.workformat.zh_TW}`
@@ -141,10 +158,10 @@ const localisation = {
         zh_TW: `請至少選擇一種${localisation_words.genre.zh_TW}。`
     },
     at_least_one_workformat: {
-        en_US: "Select at least one work format.",
+        en_US: `Select at least one ${localisation_words.workformat.en_US}.`,
         ja_JP: "作品形式を1つ以上選択してください。",
-        zh_CN: "请至少选择一种作品类型。",
-        zh_TW: "請至少選擇一種作品類型。"
+        zh_CN: `请至少选择一种${localisation_words.workformat.zh_CN}。`,
+        zh_TW: `請至少選擇一種${localisation_words.workformat.zh_TW}。`
     },
     show_advanced_options: {
         en_US: "Show advanced options",
@@ -154,9 +171,9 @@ const localisation = {
     },
     date_title: {
         en_US: "Release date",
-        ja_JP: "発売日",
-        zh_CN: "发售日",
-        zh_TW: "發售日"
+        ja_JP: "販売開始日",
+        zh_CN: "发售日期",
+        zh_TW: "發售開始日"
     },
     date_label: {
         en_US: `After <span id="date-range-time">-</span> (<span id="date-range-ago">-</span> ago)`,
@@ -188,35 +205,23 @@ const localisation = {
         zh_CN: "较高",
         zh_TW: "較高"
     },
-    genre_weight_title: {
-        en_US: `${localisation_words.genre.en_US_capital} weight`,
-        ja_JP: `${localisation_words.genre.ja_JP}の重み`,
-        zh_CN: `${localisation_words.genre.zh_CN}权重`,
-        zh_TW: `${localisation_words.genre.zh_TW}權重`
+    popularity_weight_title: {
+        en_US: "Popularity weight",
+        ja_JP: "人気度の重み",
+        zh_CN: "热门度权重",
+        zh_TW: "熱門度權重"
     },
-    genre_weight_option_1: {
-        en_US: "No weight",
-        ja_JP: "なし",
-        zh_CN: "无权重",
-        zh_TW: "無權重"
+    popularity_weight_label_1: {
+        en_US: "Less popular",
+        ja_JP: "人気が低い",
+        zh_CN: "较冷门",
+        zh_TW: "較冷門"
     },
-    genre_weight_option_2: {
-        en_US: `Lower popular ${localisation_words.genre.en_US_plural}`,
-        ja_JP: `人気${localisation_words.genre.ja_JP}の重みを下げる`,
-        zh_CN: `降低热门${localisation_words.genre.zh_CN}的权重`,
-        zh_TW: `降低熱門${localisation_words.genre.zh_TW}的權重`
-    },
-    genre_weight_option_3: {
-        en_US: `Lower unpopular ${localisation_words.genre.en_US_plural}`,
-        ja_JP: `人気のない${localisation_words.genre.ja_JP}の重みを下げる`,
-        zh_CN: `降低冷门${localisation_words.genre.zh_CN}的权重`,
-        zh_TW: `降低冷門${localisation_words.genre.zh_TW}的權重`
-    },
-    genre_weight_option_4: {
-        en_US: `Lower popular and unpopular ${localisation_words.genre.en_US_plural}`,
-        ja_JP: `人気と人気のない${localisation_words.genre.ja_JP}の重みを下げる`,
-        zh_CN: `降低热门和冷门${localisation_words.genre.zh_CN}的权重`,
-        zh_TW: `降低熱門和冷門${localisation_words.genre.zh_TW}的權重`
+    popularity_weight_label_2: {
+        en_US: "Popular",
+        ja_JP: "人気が高い",
+        zh_CN: "较热门",
+        zh_TW: "較熱門"
     },
     age_title: {
         en_US: "Age",
@@ -225,22 +230,22 @@ const localisation = {
         zh_TW: "年齡指定"
     },
     age_checkbox_1: {
-        en_US: "All ages",
+        en_US: "All Ages",
         ja_JP: "全年齢向け",
-        zh_CN: "全年龄向",
+        zh_CN: "全年龄",
         zh_TW: "全年齡向"
     },
     age_checkbox_2: {
-        en_US: "R-rated",
-        ja_JP: "R指定",
-        zh_CN: "R指定・成人指定",
-        zh_TW: "R指定・成人指定"
+        en_US: "R15",
+        ja_JP: "R15",
+        zh_CN: "R15",
+        zh_TW: "R15限定"
     },
     age_checkbox_3: {
-        en_US: "Adult",
-        ja_JP: "成人向け",
-        zh_CN: "成人向",
-        zh_TW: "成人向"
+        en_US: "R18",
+        ja_JP: "R18",
+        zh_CN: "R18",
+        zh_TW: "R18"
     },
     misc_title: {
         en_US: "Excluded contents",
@@ -262,9 +267,9 @@ const localisation = {
     },
     misc_checkbox_3: {
         en_US: "Partially AI-generated works",
-        ja_JP: "AI一部利用作品",
-        zh_CN: "部分使用AI生成的作品",
-        zh_TW: "部分使用AI生成的作品"
+        ja_JP: "AI一部利用",
+        zh_CN: "部分使用AI",
+        zh_TW: "部分AI使用"
     },
     misc_checkbox_4: {
         en_US: "Guro works",
@@ -291,22 +296,22 @@ const localisation = {
         zh_TW: "發生了錯誤。"
     },
     work_input: {
-        en_US: "What is the RJ number of your favourite work?",
-        ja_JP: "好きな作品のRJ番号はなんですか？",
-        zh_CN: "您喜欢的作品的 RJ 号是？",
-        zh_TW: "您喜歡的作品的 RJ 號是？"
+        en_US: "RJ number of your favourite work",
+        ja_JP: "好きな作品のRJ番号",
+        zh_CN: "您喜欢的作品的 RJ 号",
+        zh_TW: "您喜歡的作品的 RJ 號"
     },
-    work_input_hint: {
-        en_US: `Add ${localisation_words.genre.en_US} by work ID`,
-        ja_JP: `作品 ID で${localisation_words.genre.ja_JP}を追加`,
-        zh_CN: `通过作品 ID 添加${localisation_words.genre.zh_CN}`,
-        zh_TW: `透過作品 ID 新增${localisation_words.genre.zh_TW}`
+    rjid_title: {
+        en_US: "Copy tags from",
+        ja_JP: "タグのコピー元",
+        zh_CN: "复制标签自",
+        zh_TW: "複製標籤自"
     },
     work_input_hint_format: {
-        en_US: "Invalid work ID (e.g. RJ123456 or RJ01234567)",
-        ja_JP: "無効な作品 ID（例：RJ123456 または RJ01234567）",
-        zh_CN: "无效的作品 ID（例如 RJ123456 或 RJ01234567）",
-        zh_TW: "無效的作品 ID（例如 RJ123456 或 RJ01234567）"
+        en_US: "Invalid RJ ID (e.g. RJ123456 or RJ01234567)",
+        ja_JP: "無効な RJ 番号（例：RJ123456 または RJ01234567）",
+        zh_CN: "无效的 RJ 号（例如 RJ123456 或 RJ01234567）",
+        zh_TW: "無效的 RJ 號（例如 RJ123456 或 RJ01234567）"
     },
     welcome_title: {
         en_US: "Welcome to DLfilter.",
@@ -321,10 +326,10 @@ const localisation = {
         zh_TW: "AI 驅動的語義搜尋・在 DLsite 尋找您理想中的作品"
     },
     welcome_start_hint: {
-        en_US: `Start by adding <span id="welcome-start-hint-genres">${localisation_words.genre.en_US_plural}</span> or typing the <span id="welcome-start-hint-workid">work ID<span> in the search panel.`,
-        ja_JP: `検索パネルに <span id="welcome-start-hint-genres">${localisation_words.genre.ja_JP}</span> を追加するか、<span id="welcome-start-hint-workid">作品 ID</span> を入力して始めましょう。`,
-        zh_CN: `在搜索面板中添加 <span id="welcome-start-hint-genres">${localisation_words.genre.zh_CN}</span> 或输入 <span id="welcome-start-hint-workid">作品 ID</span> 以开始。`,
-        zh_TW: `在搜尋面板中新增 <span id="welcome-start-hint-genres">${localisation_words.genre.zh_TW}</span> 或輸入 <span id="welcome-start-hint-workid">作品 ID</span> 以開始。`
+        en_US: `Start with some <span id="welcome-start-hint-keywords">keywords</span>, <span id="welcome-start-hint-genres">${localisation_words.genre.en_US_plural}</span>, or the <span id="welcome-start-hint-workid">RJ ID</span>.`,
+        ja_JP: `<span id="welcome-start-hint-keywords">キーワード</span>、<span id="welcome-start-hint-genres">${localisation_words.genre.ja_JP}</span>、または<span id="welcome-start-hint-workid">RJ 番号</span>から始めましょう。`,
+        zh_CN: `从<span id="welcome-start-hint-keywords">关键词</span>、<span id="welcome-start-hint-genres">${localisation_words.genre.zh_CN}</span>或<span id="welcome-start-hint-workid">RJ 号</span>开始。`,
+        zh_TW: `從<span id="welcome-start-hint-keywords">關鍵字</span>、<span id="welcome-start-hint-genres">${localisation_words.genre.zh_TW}</span>或<span id="welcome-start-hint-workid">RJ 號</span>開始。`
     },
     welcome_info: {
         en_US: `Collection of <span id="banner-text">-</span> works since the millennium <span class="vr mx-2"></span> Last updated on <span id="navbar-time">-</span>`,
@@ -349,6 +354,246 @@ const localisation = {
         ja_JP: "すべての結果が表示された。検索条件を変更してみてください。",
         zh_CN: "已显示所有结果。尝试更改搜索条件以获得更多。",
         zh_TW: "已顯示所有結果。嘗試更改搜尋條件以獲得更多。"
+    },
+    work_not_in_local_db: {
+        en_US: "This RJ ID is not in the local catalog. The database may be out of date, the record may be missing, or the work may belong to another DLsite category.",
+        ja_JP: "この RJ 番号はローカルデータベースにありません。データベースが古い、記録が欠けている、または DLsite の別カテゴリの作品である可能性があります。",
+        zh_CN: "本地数据库中没有此 RJ 号。可能是数据库未更新、记录缺失，或该作品属于 DLsite 的其他分类。",
+        zh_TW: "本機資料庫中沒有此 RJ 號。可能是資料庫未更新、紀錄缺失，或該作品屬於 DLsite 的其他分類。"
+    },
+    catalog_title: {
+        en_US: "Search by",
+        ja_JP: "検索方法",
+        zh_CN: "搜索方式",
+        zh_TW: "搜尋方式"
+    },
+    catalog_age_any: {
+        en_US: "Any",
+        ja_JP: "指定なし",
+        zh_CN: "不限",
+        zh_TW: "不限"
+    },
+    language_button: {
+        en_US: "Language",
+        ja_JP: "言語",
+        zh_CN: "语言",
+        zh_TW: "語言"
+    },
+    theme_to_dark: {
+        en_US: "Switch to dark theme",
+        ja_JP: "ダークテーマに切り替え",
+        zh_CN: "切换到深色主题",
+        zh_TW: "切換到深色主題"
+    },
+    theme_to_light: {
+        en_US: "Switch to light theme",
+        ja_JP: "ライトテーマに切り替え",
+        zh_CN: "切换到浅色主题",
+        zh_TW: "切換到淺色主題"
+    },
+    catalog_placeholder: {
+        en_US: "Title, circle or RJ ID",
+        ja_JP: "作品名・サークル名・RJ 番号",
+        zh_CN: "作品名、社团名或 RJ 号",
+        zh_TW: "作品名、社團名或 RJ 號"
+    },
+    catalog_field_label: {
+        en_US: "Search in",
+        ja_JP: "検索対象",
+        zh_CN: "搜索范围",
+        zh_TW: "搜尋範圍"
+    },
+    catalog_field_all: {
+        en_US: "All",
+        ja_JP: "すべて",
+        zh_CN: "全部",
+        zh_TW: "全部"
+    },
+    catalog_field_title: {
+        en_US: "Title",
+        ja_JP: "作品名",
+        zh_CN: "作品名",
+        zh_TW: "作品名"
+    },
+    catalog_field_artist: {
+        en_US: "Circle",
+        ja_JP: "サークル",
+        zh_CN: "社团",
+        zh_TW: "社團"
+    },
+    catalog_field_id: {
+        en_US: "RJ ID",
+        ja_JP: "RJ 番号",
+        zh_CN: "RJ 号",
+        zh_TW: "RJ 號"
+    },
+    catalog_hint: {
+        en_US: "Searches the local database.<br>Width and letter case are ignored.",
+        ja_JP: "ローカルデータベースを検索します。<br>全角・半角、大文字・小文字は区別しません。",
+        zh_CN: "搜索本地数据库，<br>不区分全角半角与大小写。",
+        zh_TW: "搜尋本機資料庫，<br>不區分全形半形與大小寫。"
+    },
+    catalog_results_title: {
+        en_US: "Works found",
+        ja_JP: "作品検索結果",
+        zh_CN: "作品搜索结果",
+        zh_TW: "作品搜尋結果"
+    },
+    catalog_searching: {
+        en_US: "Searching…",
+        ja_JP: "検索中…",
+        zh_CN: "搜索中…",
+        zh_TW: "搜尋中…"
+    },
+    catalog_summary: {
+        en_US: "{total} works <span class=\"vr mx-2\"></span> Showing {start} - {end}",
+        ja_JP: "{total} 件の作品 <span class=\"vr mx-2\"></span> {start} - {end} 件目を表示中",
+        zh_CN: "共 {total} 件作品 <span class=\"vr mx-2\"></span> 显示第 {start} - {end} 件",
+        zh_TW: "共 {total} 件作品 <span class=\"vr mx-2\"></span> 顯示第 {start} - {end} 件"
+    },
+    catalog_no_results: {
+        en_US: "No works in the local database match this search.",
+        ja_JP: "ローカルデータベースに一致する作品はありません。",
+        zh_CN: "本地数据库中没有符合的作品。",
+        zh_TW: "本機資料庫中沒有符合的作品。"
+    },
+    catalog_error: {
+        en_US: "The search failed. Please try again.",
+        ja_JP: "検索に失敗しました。もう一度お試しください。",
+        zh_CN: "搜索失败，请重试。",
+        zh_TW: "搜尋失敗，請再試一次。"
+    },
+    catalog_find_similar: {
+        en_US: "Find similar",
+        ja_JP: "似た作品を探す",
+        zh_CN: "查找相似作品",
+        zh_TW: "尋找相似作品"
+    },
+    catalog_previous_page: {
+        en_US: "Previous page",
+        ja_JP: "前のページ",
+        zh_CN: "上一页",
+        zh_TW: "上一頁"
+    },
+    catalog_next_page: {
+        en_US: "Next page",
+        ja_JP: "次のページ",
+        zh_CN: "下一页",
+        zh_TW: "下一頁"
+    },
+    search_tab_keywords: {
+        en_US: "Find works",
+        ja_JP: "作品を探す",
+        zh_CN: "查找作品",
+        zh_TW: "尋找作品"
+    },
+    reset_search: {
+        en_US: "Reset search",
+        ja_JP: "検索をリセット",
+        zh_CN: "重置搜索",
+        zh_TW: "重設搜尋"
+    },
+    random_works: {
+        en_US: "Random works",
+        ja_JP: "ランダムな作品",
+        zh_CN: "随机作品",
+        zh_TW: "隨機作品"
+    },
+    reset_label: {
+        en_US: "Reset",
+        ja_JP: "リセット",
+        zh_CN: "重置",
+        zh_TW: "重設"
+    },
+    random_label: {
+        en_US: "Random",
+        ja_JP: "ランダム",
+        zh_CN: "随机",
+        zh_TW: "隨機"
+    },
+    random_results_title: {
+        en_US: "Random picks",
+        ja_JP: "ランダムピックアップ",
+        zh_CN: "随机推荐",
+        zh_TW: "隨機推薦"
+    },
+    random_summary: {
+        en_US: "{count} random works from the local database",
+        ja_JP: "ローカルデータベースからランダムに選んだ {count} 件の作品",
+        zh_CN: "从本地数据库随机选出 {count} 件作品",
+        zh_TW: "從本機資料庫隨機選出 {count} 件作品"
+    },
+    preset_save: {
+        en_US: "Save preset",
+        ja_JP: "プリセットを保存",
+        zh_CN: "保存预设",
+        zh_TW: "儲存預設"
+    },
+    preset_load: {
+        en_US: "Load preset",
+        ja_JP: "プリセットを読み込む",
+        zh_CN: "载入预设",
+        zh_TW: "載入預設"
+    },
+    preset_name: {
+        en_US: "Preset name",
+        ja_JP: "プリセット名",
+        zh_CN: "预设名称",
+        zh_TW: "預設名稱"
+    },
+    preset_save_hint: {
+        en_US: `Saves the RJ ID, ${localisation_words.genre.en_US_plural}, ${localisation_words.workformat.en_US_plural} and advanced options to the presets folder. A preset with the same name is replaced.`,
+        ja_JP: `RJ 番号・${localisation_words.genre.ja_JP}・${localisation_words.workformat.ja_JP}・詳細オプションを presets フォルダに保存します。同じ名前のプリセットは上書きされます。`,
+        zh_CN: `将 RJ 号、${localisation_words.genre.zh_CN}、${localisation_words.workformat.zh_CN}和高级选项保存到 presets 文件夹。同名预设会被覆盖。`,
+        zh_TW: `將 RJ 號、${localisation_words.genre.zh_TW}、${localisation_words.workformat.zh_TW}和進階選項儲存到 presets 資料夾。同名預設會被覆寫。`
+    },
+    preset_save_button: {
+        en_US: "Save",
+        ja_JP: "保存",
+        zh_CN: "保存",
+        zh_TW: "儲存"
+    },
+    preset_name_invalid: {
+        en_US: "Use up to 60 letters, digits, spaces, - or _.",
+        ja_JP: "60 文字以内の文字・数字・スペース・-・_ を使用してください。",
+        zh_CN: "请使用最多 60 个字母、数字、空格、- 或 _。",
+        zh_TW: "請使用最多 60 個字母、數字、空格、- 或 _。"
+    },
+    preset_too_many: {
+        en_US: "The presets folder is full. Delete some presets first.",
+        ja_JP: "presets フォルダがいっぱいです。先にプリセットを削除してください。",
+        zh_CN: "presets 文件夹已满，请先删除一些预设。",
+        zh_TW: "presets 資料夾已滿，請先刪除一些預設。"
+    },
+    preset_save_failed: {
+        en_US: "The preset could not be saved.",
+        ja_JP: "プリセットを保存できませんでした。",
+        zh_CN: "无法保存预设。",
+        zh_TW: "無法儲存預設。"
+    },
+    preset_none: {
+        en_US: "No presets saved yet.",
+        ja_JP: "保存されたプリセットはまだありません。",
+        zh_CN: "还没有保存的预设。",
+        zh_TW: "還沒有儲存的預設。"
+    },
+    preset_load_failed: {
+        en_US: "The preset could not be loaded.",
+        ja_JP: "プリセットを読み込めませんでした。",
+        zh_CN: "无法载入预设。",
+        zh_TW: "無法載入預設。"
+    },
+    preset_open_file: {
+        en_US: "Open another file…",
+        ja_JP: "別のファイルを開く…",
+        zh_CN: "打开其他文件…",
+        zh_TW: "開啟其他檔案…"
+    },
+    cancel: {
+        en_US: "Cancel",
+        ja_JP: "キャンセル",
+        zh_CN: "取消",
+        zh_TW: "取消"
     },
 
 }
