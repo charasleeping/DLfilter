@@ -1,6 +1,7 @@
 import os
 import argparse
 import sqlite3
+import json
 import pandas as pd
 from datetime import datetime, timedelta
 from module.dlsite import DLsiteCatalog, GenreCatalog
@@ -242,6 +243,32 @@ if args.init or not args.raw_only:
     df["rate"] = df["rate"].astype(int)
     df["rateCount"] = df["rateCount"].astype(int)
     df["reviewCount"] = df["reviewCount"].astype(int)
+
+    # Convert nested DLsite API values into SQLite-compatible JSON strings.
+    for column in df.columns:
+        if df[column].dtype == "object":
+            structured = df[column].map(
+                lambda value: isinstance(value, (dict, list, tuple))
+            )
+
+            if structured.any():
+                sample = df.loc[structured, column].iloc[0]
+                print(
+                    f"Serializing nested values in column {column!r} "
+                    f"(example type: {type(sample).__name__})"
+                )
+
+                df[column] = df[column].map(
+                    lambda value: json.dumps(value, ensure_ascii=False)
+                    if isinstance(value, (dict, list, tuple))
+                    else value
+                )
+
+    print("Exporting SQLite database...")
+    db = sqlite3.connect(os.path.join(args.path, "works.sqlite"))
+    df.to_sql("maniax", db, if_exists="replace")
+    db.close()
+    print("Done.")
 
     print("Exporting SQLite database...")
     db = sqlite3.connect(os.path.join(args.path, "works.sqlite"))
