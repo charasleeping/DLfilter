@@ -43,7 +43,7 @@ DLfilter is a side project for *personal* use and for learning purpose. It may n
 - Weight genres by popularity (favour niche or popular genres).
 - Weight results by download count and release date.
 - Include or exclude specific genres, and filter by product format.
-- Filter by age rating (All Ages / R15 / R18) and exclude AI-generated, partially AI-generated, low-rated, guro or gay works.
+- Filter by age ratings and exclude AI-generated, partially AI-generated, low-rated, guro or gay works.
 
 ### Comfortable to use
 - **Presets**: save your whole search setup (RJ ID, genres, formats, advanced options) and load it later, or open a preset file from anywhere.
@@ -197,29 +197,3 @@ The website is a thin client of a JSON API, so you can script against it. Intera
 | `GET /api/random` | Random works, optionally with the similarity-search filters |
 | `POST /api/similarity` | Similarity search by genres or by a given work |
 | `GET /api/presets`, `GET` / `PUT /api/presets/{name}` | List, read and save presets |
-
-## Roadmap
-- [x] ~~Demo website~~
-- [] Auto update database
-- [] Better UI
-- [x] ~~Dockerize~~
-- [] Better documentation
-- [] Negative search
-- [x] ~~Search by title, circle and RJ ID~~
-- [x] ~~Presets, random picks and a language switch~~
-- [] Other scopes in DLsite
-- [] Advanced tag weightings
-- [] Personalized search
-- [] ???
-
-## Known issues
-- Genres `おやじ`, `少女コミック`, `少年コミック`, `女性コミック`, `青年コミック` cannot be searched. This is because they don't have localized names in DLsite API. 
-- Count for some genres may be incorrect.
-
-## Credits
-- Original project and similarity search: [snowmeow2](https://github.com/snowmeow2/DLfilter), with contributions from [AnavRinTW](https://github.com/AnavRinTW).
-- Revived and extended by [charasleeping](https://github.com/charasleeping/DLfilter).
-- Genre and product format names and labels follow [DLsite](https://www.dlsite.com/)'s official translations. DLfilter is an unofficial tool and is not affiliated with DLsite.
-- Default embedding model: [sonoisa/sentence-luke-japanese-base-lite](https://huggingface.co/sonoisa/sentence-luke-japanese-base-lite).
-
-Licensed under the [MIT License](LICENSE). 
