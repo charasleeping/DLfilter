@@ -11,6 +11,8 @@ from typing import Any
 
 
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/22.0"}
+REQUEST_TIMEOUT = 30
+MAX_ATTEMPTS = 5
 
 
 class DLsiteCatalog:
@@ -57,9 +59,9 @@ class DLsiteCatalog:
             self.works_table = {}
             self.dates_table = {}
         else:
-            with open(os.path.join(path, "works_table.json"), "r") as f:
+            with open(os.path.join(path, "works_table.json"), "r", encoding="utf-8") as f:
                 self.works_table = json.load(f)
-            with open(os.path.join(path, "dates_table.json"), "r") as f:
+            with open(os.path.join(path, "dates_table.json"), "r", encoding="utf-8") as f:
                 self.dates_table = json.load(f)
 
     def get_data_duration(self, date1: str, date2: str):
@@ -87,21 +89,25 @@ class DLsiteCatalog:
     def get_data_one_day(self, date: str):
         """
         Get the work data of `date`. Will call get_outline() for updating `self.works_table`.
+        Retries with exponential backoff and raises after MAX_ATTEMPTS failures.
 
         Parameters
         ----------
         date : str
             The date. Format: YYYY-MM-DD
         """
-        while True:
+        for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 print(f"Fetching data for {date}...", end="")
                 table = self.get_outline(date)
                 break
             except Exception as e:
                 print(f"Error: {e}")
-                print("Retrying in 5 seconds...")
-                time.sleep(5)
+                if attempt == MAX_ATTEMPTS:
+                    raise RuntimeError(f"Failed to fetch {date} after {MAX_ATTEMPTS} attempts.") from e
+                delay = 5 * 2 ** (attempt - 1)
+                print(f"Retrying in {delay} seconds ({attempt}/{MAX_ATTEMPTS})...")
+                time.sleep(delay)
 
         now = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
         self.works_table.update({work["id"]: work for work in table})
@@ -117,9 +123,9 @@ class DLsiteCatalog:
         path : str
             The path to save the catalogues.
         """
-        with open(os.path.join(path, "works_table.json"), "w") as f:
+        with open(os.path.join(path, "works_table.json"), "w", encoding="utf-8") as f:
             json.dump(self.works_table, f)
-        with open(os.path.join(path, "dates_table.json"), "w") as f:
+        with open(os.path.join(path, "dates_table.json"), "w", encoding="utf-8") as f:
             json.dump(self.dates_table, f)
 
     def print_date(self) -> datetime:
@@ -184,7 +190,7 @@ class DLsiteCatalog:
         list
             A list of dictionaries containing the work data of `date`.
         """
-        response = requests.get(f"https://www.dlsite.com/maniax/new/work/api?date={date}")
+        response = requests.get(f"https://www.dlsite.com/maniax/new/work/api?date={date}", timeout=REQUEST_TIMEOUT)
         data = response.json()
 
         if data["meta"]["code"] != 200:
@@ -265,9 +271,9 @@ class GenreCatalog:
             self.workformat = fetch_data[1]
             self.genre_embedding = {}
         else:
-            with open(os.path.join(path, "genre_table.json"), "r") as f:
+            with open(os.path.join(path, "genre_table.json"), "r", encoding="utf-8") as f:
                 self.genre_catalogue = json.load(f)
-            with open(os.path.join(path, "workformat.json"), "r") as f:
+            with open(os.path.join(path, "workformat.json"), "r", encoding="utf-8") as f:
                 self.workformat = json.load(f)
             self.load_embedding(path)
 
@@ -298,7 +304,7 @@ class GenreCatalog:
         # At the same time, create the work format dictionary
         for locale in self.locales:
             cookies = {"locale": locale}
-            response = requests.get(locale_url, headers=headers, cookies=cookies)
+            response = requests.get(locale_url, headers=headers, cookies=cookies, timeout=REQUEST_TIMEOUT)
             data = response.json()
             print(f"Now processing {locale}...")
 
@@ -337,7 +343,7 @@ class GenreCatalog:
 
         # Update the genre dictionary with the count information
         req = Request(url=wokrcount_url, headers=headers)
-        soup = BeautifulSoup(urlopen(req), "html.parser")
+        soup = BeautifulSoup(urlopen(req, timeout=REQUEST_TIMEOUT), "html.parser")
         versatility_linklist_wrapper = soup.find_all("div", class_="versatility_linklist_wrapper")
 
         # Loop through each wrapper
@@ -378,9 +384,9 @@ class GenreCatalog:
         path : str
             The path to save the genre catalogue
         """
-        with open(os.path.join(path, "genre_table.json"), "w") as f:
+        with open(os.path.join(path, "genre_table.json"), "w", encoding="utf-8") as f:
             json.dump(self.genre_catalogue, f)
-        with open(os.path.join(path, "workformat.json"), "w") as f:
+        with open(os.path.join(path, "workformat.json"), "w", encoding="utf-8") as f:
             json.dump(self.workformat, f)
 
     def load_embedding(self, path: str):

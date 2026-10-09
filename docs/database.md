@@ -21,22 +21,34 @@ A work database is required for DLfilter to run.
 
 For first-time users, you can directly download the pre-built database from **[here](https://drive.google.com/file/d/1Jod-iFufGW3lIyqttlws9hOqK4k79ha8/view?usp=sharing)** (recorded date: 2000-01-01 - 2023-07-10, ~130 MB, decompressed ~1 GB). Please extract the files to `DLfilter/database`.
 
-If you want to build your own database, please execute `initial.py -i` for initialization. Please make sure that you have installed all the dependencies in your environment:
+If you want to build your own database, please execute `initial.py -i` for initialization. Please make sure that you have installed all the dependencies in your environment, including the `update` extra:
 ```bash
 cd DLfilter
-pip install -r requirements.txt
+uv sync --extra update             # or: pip install -r requirements.txt
 ```
 Then
 ```bash
-python initial.py -i
+uv run python initial.py -i        # or: python initial.py -i
 ```
 The program will ask the date range of the works you want to collect. Please input the date or a date range in the format of `YYYY-MM-DD`. For example, 
 - `2022-01-01` or
 - `2022-01-01 2022-01-31` (separated by a space)
 
-The program will automatically crawl the works from DLsite in the given date range and store them in the database.
+The program will automatically crawl the works from DLsite in the given date range and store them in the database. Failed requests are retried a few times with increasing delays.
 
-At the first time you create the database, the program will download the language model for calculating genre embeddings. This may take a while. The default model is [sonoisa/sentence-luke-japanese-base-lite](https://huggingface.co/sonoisa/sentence-luke-japanese-base-lite). You can change it by adding the `--model model_name` argument to use models available on [Hugging Face](https://huggingface.co/models).
+At the first time you create the database, the program will download the language model for calculating genre embeddings. This may take a while. The default model is [sonoisa/sentence-luke-japanese-base-lite](https://huggingface.co/sonoisa/sentence-luke-japanese-base-lite). You can change it by adding the `--model model_name` argument (or setting `DLFILTER_MODEL`) to use models available on [Hugging Face](https://huggingface.co/models).
+
+To work offline, pass a local copy of the model instead of a name, and stop Hugging Face from going online:
+```bash
+HF_HUB_OFFLINE=1 python initial.py -u --model /path/to/sonoisa_sentence-luke-japanese-base-lite
+```
+The default model needs `transformers` 4.x; version 5 cannot load its tokenizer, so the lockfile pins `transformers<5`. Run `python -m module.doctor --model` to check that the model loads.
+
+### Saving the database safely
+`works.sqlite` is written to `works.sqlite.tmp` first and checked (integrity, required columns, row count). Only then is the old file renamed to `works.sqlite.bak` and the new one moved into place. If anything fails, the old database is left untouched.
+- Stop the server before exporting, so the file is not replaced while it is being read.
+- Keep free disk space of about twice the size of `works.sqlite` (the new file and the backup exist at the same time).
+- To roll back, stop the server and rename `works.sqlite.bak` to `works.sqlite`.
 
 ### Update database
 If you already have a database, you can update it by executing `initial.py -u` to the latest date:
@@ -53,6 +65,7 @@ python initial.py -d 2022-01-01
 # Update the works released from 2022-01-01 to 2022-01-31
 python initial.py -d 2022-01-01 2022-01-31
 ```
+A `-d` range longer than 31 days asks for confirmation first, as crawling it takes a long time.
 
 ### Advanced usage
 Use `-h` or `--help` argument to see all the available arguments:
@@ -110,5 +123,5 @@ where `509` is the ID of the genre, `category` is the category of the genre, `na
 ```
 where `ACN` is the ID of the work format, `category` is the father category of the work format, and `name` is the name of the work format. The `category` and `name` have multiple languages, and should be specified by the language code (e.g., `ja_JP`). 
 
-- `works.sqlite`: the SQLite database file, which stores the metadata of the works for searching. 
+- `works.sqlite`: the SQLite database file, which stores the metadata of the works for searching. Both the similarity search and the title / circle / RJ ID search read it; the latter only knows the works collected here (DLsite `maniax`, up to the last update).
 - `works_table.json`: records the complete metadata of all works. Not recommended to open directly because of the large size of the data.

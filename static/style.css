@@ -2,20 +2,270 @@
     max-height: 240px;
 }
 
+html {
+    font-size: 90%;
+}
+
+/* the panels start below the fixed theme switch */
+:root {
+    --panel-top: 5.5rem;
+    --panel-height: calc(100vh - var(--panel-top) - 2.5vh);
+    --page-bg: #eceff3;
+    --panel-bg: #ffffff;
+}
+
+[data-bs-theme="dark"] {
+    --page-bg: #1f2225;
+    --panel-bg: #0e1012;
+}
+
 #search-panel-container {
     height: 100vh;
+    align-items: flex-start !important;
+    padding-top: var(--panel-top);
+}
+
+@media (min-width: 768px) {
+    #search-panel {
+        height: var(--panel-height);
+    }
 }
 
 #search-panel {
-    background-color: var(--bs-body-bg);
-    border: 1px solid var(--bs-tertiary-bg);
-    max-height: 95vh;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--bs-border-color-translucent);
+    max-height: var(--panel-height);
+    display: flex;
+    flex-direction: column;
+    line-height: 1.75;
+}
+
+#search-panel > * {
+    flex: 0 0 auto;
 }
 
 #search-terms-container {
-    max-height: calc(95vh - 200px);
+    flex: 1 1 auto;
+    min-height: 8rem;
     overflow-y: auto;
     overflow-x: hidden;
+}
+
+#search-panel .form-text,
+#search-panel .form-check-label,
+#search-panel h5,
+#search-panel h6 {
+    line-height: 1.75;
+}
+
+#search-panel h5,
+#search-panel h6 {
+    margin-bottom: 0.6rem;
+}
+
+#search-panel .form-text {
+    margin-top: 0.5rem;
+}
+
+#search-panel {
+    overflow-y: auto;
+}
+
+/* tabs: the open pane fills the panel, so the footer stays at the bottom */
+#search-tab-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#search-tab-content > .tab-pane.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+#search-tabs .nav-link {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+#search-tabs .nav-link.active {
+    background-color: var(--panel-bg);
+    border-bottom-color: var(--panel-bg);
+}
+
+/* square icon buttons with rounded corners, as tall as the buttons beside them */
+.btn-square {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: calc(1.5em + 0.75rem + 2 * var(--bs-border-width));
+    height: calc(1.5em + 0.75rem + 2 * var(--bs-border-width));
+    padding: 0;
+    border-radius: 0.6rem;
+}
+
+.btn-square.btn-sm {
+    width: calc(1.5em + 0.5rem + 2 * var(--bs-border-width));
+    height: calc(1.5em + 0.5rem + 2 * var(--bs-border-width));
+    border-radius: 0.5rem;
+}
+
+#catalog-age-container {
+    min-width: 0;
+}
+
+#rjid-work-name:empty {
+    display: none;
+}
+
+#catalog-age-btn {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.version-box {
+    display: inline-block;
+    margin-top: 0.5rem;
+    line-height: 1.5;
+    color: var(--bs-secondary-color);
+}
+
+.credits {
+    margin-top: 0.35rem;
+}
+
+.credits .tw-char {
+    opacity: 0;
+}
+
+.credits .tw-char.tw-on {
+    opacity: 1;
+}
+
+.tw-caret {
+    display: inline-block;
+    width: 1px;
+    height: 1em;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    background-color: currentColor;
+    animation: tw-blink 0.8s steps(1) infinite;
+}
+
+@keyframes tw-blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* theme switch button, with the language button on its left */
+#dark-toggle,
+#lang-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1.5rem;
+    z-index: 1040;
+    background-color: var(--bs-body-bg);
+}
+
+#lang-toggle {
+    right: calc(1.5rem + 50px + 0.5rem);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+/* hovering dims the buttons instead of filling them, so the icon stays visible */
+#dark-toggle,
+#lang-toggle {
+    --bs-btn-hover-color: var(--bs-btn-color);
+    --bs-btn-active-color: var(--bs-btn-color);
+}
+
+#dark-toggle:hover,
+#lang-toggle:hover {
+    opacity: 0.6;
+}
+
+.lang-glyph-old {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* shows the language the button switches to */
+.lang-glyph {
+    font-size: 1.35rem;
+    font-weight: 600;
+    line-height: 1;
+}
+
+/* save and load preset in the first column, search and the reset / random pair beside them */
+#similar-actions {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem;
+}
+
+/* slightly darker dark theme */
+[data-bs-theme="dark"] {
+    --bs-body-bg: #181b1e;
+    --bs-body-bg-rgb: 24, 27, 30;
+    --bs-secondary-bg: #24272b;
+    --bs-secondary-bg-rgb: 36, 39, 43;
+    --bs-tertiary-bg: #1f2225;
+    --bs-tertiary-bg-rgb: 31, 34, 37;
+}
+
+/* theme change: the new theme spreads out from the button (see script.js) */
+::view-transition-old(root),
+::view-transition-new(root) {
+    mix-blend-mode: normal;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation: none;
+    }
+
+    ::view-transition-new(root) {
+        z-index: 2;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    ::view-transition-old(root),
+    ::view-transition-new(root) {
+        animation-duration: 0.35s;
+    }
+}
+
+#catalog-field {
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 40%;
+}
+
+.catalog-description {
+    display: block;
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+}
+
+#catalog-pagination .page-link {
+    min-width: 2.5rem;
 }
 
 #search-terms-container .col {
@@ -24,8 +274,100 @@
 }
 
 .btn-add {
-    padding: 0em 0.65em;
-    font-size: small;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    margin-left: 0.6rem;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    line-height: 1;
+    vertical-align: middle;
+    position: relative;
+    top: -0.1rem;
+}
+
+.advanced-toggle {
+    color: var(--bs-secondary-color);
+    text-align: left;
+    border: 0;
+}
+
+.advanced-toggle:hover {
+    color: var(--bs-body-color);
+}
+
+.advanced-arrow {
+    font-size: 0.75em;
+    transition: transform 0.2s ease-in-out;
+}
+
+.advanced-toggle[aria-expanded="true"] .advanced-arrow {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .advanced-arrow {
+        transition: none;
+    }
+}
+
+/* an advanced option is greyed out while its switch is off */
+.advanced-option .form-switch {
+    min-height: 0;
+    margin-top: 0.1rem;
+}
+
+.advanced-option.is-off .form-text {
+    opacity: 0.5;
+}
+
+.advanced-option .btn-add.disabled {
+    opacity: 0.35;
+}
+
+/* switches: no focus ring or tinted knob after a click (keyboard focus still shows them) */
+.form-switch .form-check-input:focus:not(:focus-visible) {
+    box-shadow: none;
+}
+
+.form-switch .form-check-input:focus:not(:focus-visible):not(:checked) {
+    border-color: var(--bs-border-color);
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%280, 0, 0, 0.25%29'/%3e%3c/svg%3e");
+}
+
+[data-bs-theme="dark"] .form-switch .form-check-input:focus:not(:focus-visible):not(:checked) {
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%28255, 255, 255, 0.25%29'/%3e%3c/svg%3e");
+}
+
+/* hovered start-hint terms highlight their target */
+.hint-highlight {
+    color: var(--bs-primary) !important;
+}
+
+input.hint-highlight {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* tab labels are centred both ways, whether they take one line or two */
+#category-link-nav .nav-link,
+#categories-link-nav .nav-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+}
+
+/* genres keep their text on one line and wrap to the next row when it does not fit */
+.genre-item {
+    flex: 0 0 auto;
+    width: max-content;
+    min-width: 33.333%;
+    max-width: 100%;
 }
 
 .btn-genre {
@@ -91,14 +433,28 @@
 }
 
 #result-panel {
-    max-height: 95vh;
+    max-height: var(--panel-height);
+    min-height: var(--panel-height);
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
-.carousel-item img {
-    height: 350px;
+#result-panel > * {
+    flex: 0 0 auto;
 }
 
+#result-panel > .result-footer {
+    margin-top: auto !important;
+}
+
+/* lines up with the last line of the credits in the search panel */
+#welcome-info {
+    position: relative;
+    top: -2px;
+}
+
+#welcome-start-hint-keywords,
 #welcome-start-hint-genres,
 #welcome-start-hint-workid {
     text-decoration: underline dotted;
@@ -111,6 +467,7 @@
     background-color: var(--bs-border-color);
 } */
 
+#welcome-start-hint-keywords:hover,
 #welcome-start-hint-genres:hover,
 #welcome-start-hint-workid:hover {
     color: var(--bs-primary);

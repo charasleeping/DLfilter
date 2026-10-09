@@ -29,15 +29,15 @@
 
     <script src="https://code.jquery.com/jquery-3.7.0.min.js"
         integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
-    <script src="{{ url_for('static', path='/localisation.js') }}"></script>
-    <script src="{{ url_for('static', path='/template.js') }}"></script>
-    <script src="{{ url_for('static', path='/script.js') }}"></script>
+    <script src="{{ asset_url('localisation.js') }}"></script>
+    <script src="{{ asset_url('template.js') }}"></script>
+    <script src="{{ asset_url('script.js') }}"></script>
     <script type="module" defer>
         import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
         polyfillCountryFlagEmojis();
     </script>
 
-    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
     <style type="text/css">
         @import url('https://fonts.googleapis.com/css?family=Noto+Sans+JP');
 
@@ -58,16 +58,16 @@
         }
 
         #result-panel::-webkit-scrollbar-track {
-            border: 4px solid var(--bs-tertiary-bg);
+            border: 4px solid var(--page-bg);
         }
 
         #result-panel::-webkit-scrollbar-thumb {
-            border: 3px solid var(--bs-tertiary-bg);
+            border: 3px solid var(--page-bg);
         }
 
         body {
             font-family: "Noto Sans JP", sans-serif;
-            background-color: var(--bs-tertiary-bg);
+            background-color: var(--page-bg);
         }
 
         .badge {
@@ -99,7 +99,7 @@
     <main>
         <!-- Genre Modal -->
         <div class="modal fade" id="genre-modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-lg-down">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h1 class="modal-title fs-5 px-2" id="genre-modal-title">Search Genres</h1>
@@ -178,10 +178,10 @@
 
         <!-- Category Modal -->
         <div class="modal fade" id="workformat-modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-lg modal-fullscreen-lg-down">
+            <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h1 class="modal-title fs-5 px-2" id="workformat-modal-title">Work types</h1>
+                        <h1 class="modal-title fs-5 px-2" id="workformat-modal-title">Select categories</h1>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -245,6 +245,69 @@
             </div>
         </div>
 
+        <!-- save preset -->
+        <div class="modal fade" id="preset-save-modal" tabindex="-1" aria-labelledby="preset-save-modal-title"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form class="modal-content" id="preset-save-form" autocomplete="off" novalidate>
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="preset-save-modal-title">Save preset</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="preset-name" class="form-label" id="preset-name-label">Preset name</label>
+                        <input type="text" class="form-control focus-ring" id="preset-name" maxlength="60"
+                            list="preset-name-list" aria-describedby="preset-save-hint">
+                        <datalist id="preset-name-list"></datalist>
+                        <div class="invalid-feedback" id="preset-save-error"></div>
+                        <div class="form-text" id="preset-save-hint">Saved to the presets folder. A preset with the
+                            same name is replaced.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                            id="preset-save-cancel">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="preset-save-submit"><i
+                                class="fa-solid fa-floppy-disk"></i> <span id="preset-save-submit-label">Save</span></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- load preset -->
+        <div class="modal fade" id="preset-load-modal" tabindex="-1" aria-labelledby="preset-load-modal-title"
+            aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h1 class="modal-title fs-5" id="preset-load-modal-title">Load preset</h1>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="form-text mb-2"><i class="fa-regular fa-folder-open"></i> <code
+                                id="preset-folder">presets/</code></div>
+                        <div class="list-group" id="preset-list"></div>
+                        <div class="text-body-secondary text-center py-3 d-none" id="preset-list-status"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <input type="file" id="preset-file-input" accept=".json,application/json" hidden>
+                        <button type="button" class="btn btn-outline-secondary me-auto" id="preset-file-btn"><i
+                                class="fa-solid fa-file-import"></i> <span id="preset-file-btn-label">Open another
+                                file…</span></button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                            id="preset-load-cancel">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- language switch: cycles English, Japanese, Traditional Chinese, Simplified Chinese -->
+        <button type="button" id="lang-toggle" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm"
+            aria-label="Language: English" title="Language: English"><span class="lang-glyph">あ</span></button>
+
+        <!-- theme switch -->
+        <button type="button" id="dark-toggle" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm"
+            aria-label="Switch to dark theme" title="Switch to dark theme"></button>
+
         <!-- Go top -->
         <div id="side-btn-container" style="display: none;">
             <a id="clear-btn" class="btn btn-danger btn-circle rounded-circle shadow-sm" href="#" role="button"><i
@@ -260,25 +323,93 @@
             <div class="row align-items-center mx-1" id="search-panel-container">
                 <!-- search panel -->
                 <div class="col-md-3 p-3 shadow-sm rounded-3" id="search-panel">
-                    <!-- upper part -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <h4 style="text-align: center; margin-bottom: 15px;"><b id="search-title">Search</b> <a
-                                    class="btn btn-outline-dark" id="dark-toggle"><i class="fa-solid fa-moon"></i>
-                                </a></h4>
-                            <input id="rjid" type="text" class="form-control focus-ring"
-                                placeholder="What is the RJ number of your favourite work?" value="">
-                            <div id="rjid-work-name" class="form-text text-center">
-                                Add genres by work ID
-                            </div>
+                    <h4 style="text-align: center; margin-bottom: 15px;"><b id="search-title">Search</b></h4>
+                    <ul class="nav nav-tabs nav-fill mb-3" id="search-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="keyword-tab" data-bs-toggle="tab"
+                                data-bs-target="#keyword-pane" type="button" role="tab" aria-controls="keyword-pane"
+                                aria-selected="true"><i class="fa-solid fa-magnifying-glass"></i> <span
+                                    id="keyword-tab-label">Find works</span></button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="similar-tab" data-bs-toggle="tab"
+                                data-bs-target="#similar-pane" type="button" role="tab" aria-controls="similar-pane"
+                                aria-selected="false"><i class="fa-solid fa-wand-magic-sparkles"></i> <span
+                                    id="similar-tab-label">Find similar</span></button>
+                        </li>
+                    </ul>
+                    <div class="tab-content" id="search-tab-content">
+                        <!-- tab 1: local catalogue search by title / circle / RJ ID -->
+                        <div class="tab-pane fade show active" id="keyword-pane" role="tabpanel"
+                            aria-labelledby="keyword-tab" tabindex="0">
+                            <form id="catalog-search-form" role="search" autocomplete="off" novalidate>
+                                <h5><label for="catalog-query" id="catalog-title">Search by</label></h5>
+                                <div class="input-group mb-2">
+                                    <select class="form-select focus-ring" id="catalog-field"
+                                        aria-label="Search in">
+                                        <option value="all" id="catalog-field-all" selected>All</option>
+                                        <option value="title" id="catalog-field-title">Title</option>
+                                        <option value="artist" id="catalog-field-artist">Circle</option>
+                                        <option value="id" id="catalog-field-id">RJ ID</option>
+                                    </select>
+                                    <input type="search" class="form-control focus-ring" id="catalog-query"
+                                        maxlength="100" placeholder="Title, circle or RJ ID"
+                                        aria-describedby="catalog-hint">
+                                    <button type="submit" class="btn btn-primary" id="catalog-search-btn"
+                                        aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
+                                </div>
+                                <div class="d-flex align-items-center gap-2 mb-1">
+                                <div class="dropdown me-auto" id="catalog-age-container">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
+                                        id="catalog-age-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                                        aria-expanded="false">
+                                        <span id="catalog-age-btn-label">Age</span>: <span
+                                            id="catalog-age-summary">All ages</span>
+                                    </button>
+                                    <div class="dropdown-menu p-2 small" aria-labelledby="catalog-age-btn">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="catalog-age-1"
+                                                checked>
+                                            <label class="form-check-label" id="catalog-age-1-label"
+                                                for="catalog-age-1">All ages</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="catalog-age-2">
+                                            <label class="form-check-label" id="catalog-age-2-label"
+                                                for="catalog-age-2">R-rated</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="catalog-age-3">
+                                            <label class="form-check-label" id="catalog-age-3-label"
+                                                for="catalog-age-3">Adult</label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline-secondary btn-sm btn-square"
+                                    id="reset-search-btn" aria-label="Reset search" title="Reset search"><i
+                                        class="fa-solid fa-arrow-rotate-left"></i></button>
+                                <button type="button" class="btn btn-outline-primary btn-sm btn-square"
+                                    id="random-works-btn" aria-label="Random works" title="Random works"><i
+                                        class="fa-solid fa-dice"></i></button>
+                                </div>
+                                <div id="catalog-hint" class="form-text">Searches the local database.<br>Width and letter case are ignored.</div>
+                            </form>
                         </div>
-                    </div>
-                    <!-- lower part -->
+                        <!-- tab 2: similarity search by RJ ID, genres and categories -->
+                        <div class="tab-pane fade" id="similar-pane" role="tabpanel" aria-labelledby="similar-tab"
+                            tabindex="0">
+                            <div class="mb-2">
+                                <h5><label for="rjid" id="rjid-title">Copy tags from</label></h5>
+                                <input id="rjid" type="text" class="form-control focus-ring"
+                                    placeholder="RJ number of your favourite work" value=""
+                                    aria-describedby="rjid-work-name">
+                                <div id="rjid-work-name" class="form-text text-center"></div>
+                            </div>
                     <div id="search-terms-container">
                         <!-- container for genres -->
                         <div class="row">
                             <div class="col mb-2 mt-2">
-                                <h5><i class="fa-solid fa-tags"></i> <span id="genre-title">Genres</span> <a
+                                <h5><i class="fa-solid fa-tags" id="genre-title-icon"></i> <span id="genre-title">Genres</span> <a
                                         class="btn btn-outline-primary btn-add rounded-pill" role="button"
                                         id="genre-add-btn" data-bs-toggle="modal" data-bs-target="#genre-modal"
                                         data-genre-action="add"><i class="fa-solid fa-plus"></i></a></h5>
@@ -317,8 +448,7 @@
                         <!-- container for categories -->
                         <div class="row">
                             <div class="col">
-                                <h5><i class="fa-solid fa-box-archive"></i> <span id="workformat-title">Work
-                                        types</span>
+                                <h5><i class="fa-solid fa-box-archive"></i> <span id="workformat-title">Categories</span>
                                     <a class="btn btn-outline-primary btn-add rounded-pill" role="button"
                                         data-bs-toggle="modal" data-bs-target="#workformat-modal"><i
                                             class="fa-solid fa-plus"></i></a>
@@ -331,46 +461,61 @@
                             </div>
                         </div>
                         <!-- container for weights and advanced options -->
-                        <div class="form-check form-switch form-check-reverse mx-2 mb-2">
-                            <input class="form-check-input" type="checkbox" id="advanced-panel-switch"
-                                data-bs-toggle="collapse" data-bs-target="#advanced-options-panel">
-                            <label class="form-check-label" for="advanced-panel-switch"
-                                id="advanced-panel-switch-label">Show advanced options</label>
-                        </div>
+                        <button type="button" class="btn advanced-toggle d-flex align-items-center w-100 px-2 mb-2"
+                            id="advanced-panel-toggle" data-bs-toggle="collapse"
+                            data-bs-target="#advanced-options-panel" aria-expanded="false"
+                            aria-controls="advanced-options-panel">
+                            <i class="fa-solid fa-chevron-right advanced-arrow me-2"></i>
+                            <span id="advanced-panel-switch-label">Show advanced options</span>
+                        </button>
                         <div class="collapse" id="advanced-options-panel">
                             <div class="row">
-                                <div class="col mb-3">
-                                    <h5><i class="fa-solid fa-scale-unbalanced-flip"></i> <span
-                                            id="genre-weight-title">Genre
-                                            weight</span></h5>
-                                    <select class="form-select mb-2" id="genre-weight-select">
-                                        <option value="4" id="genre-weight-option-1">No weight</option>
-                                        <option value="1" id="genre-weight-option-2">Lower the weight of popular genres
-                                        </option>
-                                        <option value="2" id="genre-weight-option-3">Lower the weight of unpopular
-                                            genres</option>
-                                        <option value="3" id="genre-weight-option-4">Lower the weight of popular genres
-                                            and unpopular genres</option>
-                                    </select>
+                                <div class="col mb-3 advanced-option is-off">
+                                    <h5><span class="form-check form-switch float-end mb-0"><input
+                                                class="form-check-input" type="checkbox" role="switch"
+                                                id="popularity-weight-enabled"
+                                                aria-label="Popularity weight"></span><i
+                                            class="fa-solid fa-scale-unbalanced-flip"></i> <span
+                                            id="popularity-weight-title">Popularity weight</span>
+                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
+                                            id="popularity-weight-reset-btn" aria-disabled="true"><i
+                                                class="fa-solid fa-arrow-rotate-left"></i></a>
+                                    </h5>
+                                    <label for="popularity-weight-range"
+                                        class="form-label form-text row justify-content-between">
+                                        <div class="col-6" id="popularity-weight-label-1">Less popular</div>
+                                        <div class="col-6 text-end" id="popularity-weight-label-2">Popular</div>
+                                    </label>
+                                    <input type="range" class="form-range" id="popularity-weight-range" min="0"
+                                        max="2" step="1" value="1" disabled>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col mb-3">
-                                    <h5><i class="fa-solid fa-calendar-days"></i> <span id="date-range-title">Release
+                                <div class="col mb-3 advanced-option is-off">
+                                    <h5><span class="form-check form-switch float-end mb-0"><input
+                                                class="form-check-input" type="checkbox" role="switch"
+                                                id="date-range-enabled" aria-label="Release date"></span><i
+                                            class="fa-solid fa-calendar-days"></i> <span id="date-range-title">Release
                                             date</span>
-                                        <a class="btn btn-outline-primary btn-add rounded-pill" role="button"
-                                            id="date-reset-btn"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
+                                            id="date-reset-btn" aria-disabled="true"><i
+                                                class="fa-solid fa-arrow-rotate-left"></i></a>
                                     </h5>
                                     <label for="date-range" class="form-label form-text" id="date-range-label">-</label>
-                                    <input type="range" class="form-range" id="date-range" min="0" max="100" value="5">
+                                    <input type="range" class="form-range" id="date-range" min="0" max="100" value="5"
+                                        disabled>
                                 </div>
                             </div>
                             <div class="row">
-                                <div class="col mb-3">
-                                    <h5><i class="fa-solid fa-arrow-trend-up"></i> <span
+                                <div class="col mb-3 advanced-option is-off">
+                                    <h5><span class="form-check form-switch float-end mb-0"><input
+                                                class="form-check-input" type="checkbox" role="switch"
+                                                id="dlcount-range-enabled" aria-label="Download count"></span><i
+                                            class="fa-solid fa-arrow-trend-up"></i> <span
                                             id="dlcount-range-title">Download count</span>
-                                        <a class="btn btn-outline-primary btn-add rounded-pill" role="button"
-                                            id="dlcount-reset-btn"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
+                                            id="dlcount-reset-btn" aria-disabled="true"><i
+                                                class="fa-solid fa-arrow-rotate-left"></i></a>
                                     </h5>
                                     <label for="dlcount-range" class="form-label form-text row justify-content-between">
                                         <div class="col-12" id="dlcount-range-label-0">Changing the value may yield poor
@@ -379,7 +524,7 @@
                                         <div class="col-6 text-end" id="dlcount-range-label-2">Higher</div>
                                     </label>
                                     <input type="range" class="form-range" id="dlcount-range" min="0" max="100"
-                                        step="10" value="50">
+                                        step="10" value="50" disabled>
                                 </div>
                             </div>
                             <div class="row">
@@ -449,108 +594,81 @@
                             </div>
                         </div>
                     </div>
-                    <div class="row pt-2">
-                        <div class="d-grid gap-2">
-                            <button type="button" id="search-btn" class="btn btn-primary"><i
-                                    class="fa-solid fa-magnifying-glass"></i> <span
-                                    id="search-btn-label">Search</span></i></button>
+                            <div class="pt-2" id="similar-actions">
+                                <button type="button" class="btn btn-outline-primary btn-square" id="preset-save-btn"
+                                    data-bs-toggle="modal" data-bs-target="#preset-save-modal"
+                                    aria-label="Save preset" title="Save preset"><i
+                                        class="fa-solid fa-floppy-disk"></i></button>
+                                <button type="button" id="search-btn" class="btn btn-primary"><i
+                                        class="fa-solid fa-magnifying-glass"></i> <span
+                                        id="search-btn-label">Search</span></button>
+                                <button type="button" class="btn btn-outline-primary btn-square" id="preset-load-btn"
+                                    data-bs-toggle="modal" data-bs-target="#preset-load-modal"
+                                    aria-label="Load preset" title="Load preset"><i
+                                        class="fa-solid fa-folder-open"></i></button>
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-outline-secondary flex-fill"
+                                        id="similar-reset-btn" aria-label="Reset search" title="Reset search"><i
+                                            class="fa-solid fa-arrow-rotate-left"></i> <span
+                                            id="similar-reset-label">Reset</span></button>
+                                    <button type="button" class="btn btn-outline-primary flex-fill"
+                                        id="similar-random-btn" aria-label="Random picks" title="Random picks"><i
+                                            class="fa-solid fa-dice"></i> <span
+                                            id="similar-random-label">Random</span></button>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    <!-- version and credits -->
+                    <div class="panel-footer text-end mt-3">
+                        <small class="version-box" id="welcome-version">ver 1.0</small>
+                        <div class="credits form-text" id="credits">Originally by <a
+                                href="https://github.com/snowmeow2/DLfilter" target="_blank"
+                                rel="noopener noreferrer">snowmeow2</a>. Revived by <a
+                                href="https://github.com/charasleeping/DLfilter" target="_blank"
+                                rel="noopener noreferrer">charasleeping</a>.</div>
                     </div>
                 </div>
 
                 <!-- result panel -->
                 <div class="col-md-9 p-3" id="result-panel">
-                    <div id="carousel-container" class="collapse show">
-                        <div id="carouselId"
-                            class="carousel carousel-light carousel-fade slide shadow-sm d-md-block d-none">
-                            <div class="carousel-indicators">
-                                <button type="button" data-bs-target="#carousel-item-1" data-bs-slide-to="0"
-                                    aria-label="Slide 1"></button>
-                                <button type="button" data-bs-target="#carousel-item-2" data-bs-slide-to="1"
-                                    aria-label="Slide 2"></button>
-                                <button type="button" data-bs-target="#carousel-item-3" data-bs-slide-to="2"
-                                    class="active" aria-current="true" aria-label="Slide 3"></button>
-                                <button type="button" data-bs-target="#carousel-item-4" data-bs-slide-to="3"
-                                    aria-label="Slide 4"></button>
-                                <button type="button" data-bs-target="#carousel-item-5" data-bs-slide-to="4"
-                                    aria-label="Slide 5"></button>
+                    <div id="welcome-banner" class="collapse show">
+                        <div class="row mx-4 mb-4 mt-0">
+                            <div class="border-start border-4 px-4">
+                                <h2><b id="welcome-title">Welcome to DLfilter.</b></h2>
+                                <p id="welcome-subtitle">A place to filter anything you love on DLsite</p>
+                                <h5 id="welcome-start-hint">Start with some <span
+                                        id="welcome-start-hint-keywords">keywords</span>, <span
+                                        id="welcome-start-hint-genres">genres</span>, or the <span
+                                        id="welcome-start-hint-workid">RJ ID</span>.
+                                </h5>
                             </div>
-                            <div class="carousel-inner rounded-3" role="listbox">
-                                <div class="carousel-item">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/21/Peter_Paul_Rubens_-_The_Judgement_of_Paris%2C_c.1606_%28Museo_del_Prado%29.jpg/1280px-Peter_Paul_Rubens_-_The_Judgement_of_Paris%2C_c.1606_%28Museo_del_Prado%29.jpg"
-                                        class="w-100 d-block" alt="First slide">
-                                    <div class="carousel-caption d-none d-md-block">
-                                        <!-- <h3>Title</h3> -->
-                                        <p>Where beauty ascends, death descends.</p>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/John_Everett_Millais_-_Ophelia_-_Google_Art_Project.jpg/1280px-John_Everett_Millais_-_Ophelia_-_Google_Art_Project.jpg"
-                                        class="w-100 d-block" alt="Second slide">
-                                    <div class="carousel-caption d-none d-md-block">
-                                        <!-- <h3>Title</h3> -->
-                                        <p>Be thou as chaste as ice, as pure as snow, thou shalt not escape calumny.</p>
-                                    </div>
-                                </div>
-                                <div class="carousel-item active">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/8c/Edgar_Germain_Hilaire_Degas_004.jpg/1280px-Edgar_Germain_Hilaire_Degas_004.jpg"
-                                        class="w-100 d-block" alt="Third slide">
-                                    <div class="carousel-caption d-none d-md-block">
-                                        <!-- <h3>Title</h3> -->
-                                        <p>So sweet was my everyday life that her departure dreaded so much.</p>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e5/Paul_Gauguin_-_D%27ou_venons-nous.jpg/1280px-Paul_Gauguin_-_D%27ou_venons-nous.jpg"
-                                        class="w-100 d-block" alt="Fourth slide">
-                                    <div class="carousel-caption d-none d-md-block">
-                                        <!-- <h3>Title</h3> -->
-                                        <p>Where Do We Come From? What Are We? Where Are We Going?</p>
-                                    </div>
-                                </div>
-                                <div class="carousel-item">
-                                    <img src="https://upload.wikimedia.org/wikipedia/en/a/a7/Matissedance.jpg"
-                                        class="w-100 d-block" alt="Fifth slide">
-                                    <div class="carousel-caption d-none d-md-block">
-                                        <!-- <h3>Title</h3> -->
-                                        <p>A primitive, primitive animal that desires connection.</p>
-                                    </div>
-                                </div>
-                            </div>
-                            <button class="carousel-control-prev" type="button" data-bs-target="#carouselId"
-                                data-bs-slide="prev">
-                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Previous</span>
-                            </button>
-                            <button class="carousel-control-next" type="button" data-bs-target="#carouselId"
-                                data-bs-slide="next">
-                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                                <span class="visually-hidden">Next</span>
-                            </button>
                         </div>
                     </div>
-
-                    <div class="row m-4">
-                        <div class="alert alert-light alert-dismissible" role="alert">
-                            <div id="welcome-top-alert">
-                                🚧 <b>DLfilter is still under construction!</b> 🚧<br>Features may be missing. Don't
-                                worry, I am still working on it!
+                    <p class="visually-hidden text-muted mx-4 mt-2" id="search-info"><span
+                            id="search-info-count">-</span>
+                        works (<span id="search-info-time">-</span> seconds) <span class="vr mx-2"></span>
+                        Showing <span id="search-info-start"></span> - <span id="search-info-end"></span>
+                        results:</p>
+                    <!-- local catalogue search results -->
+                    <section class="mx-md-4 mb-4 d-none" id="catalog-results-section"
+                        aria-labelledby="catalog-results-title">
+                        <div class="mb-2">
+                            <h5 class="m-0"><i class="fa-solid fa-book-open"></i> <span
+                                    id="catalog-results-title">Works found</span></h5>
+                        </div>
+                        <p class="text-muted" id="catalog-status" role="status" aria-live="polite"></p>
+                        <div class="d-flex justify-content-center d-none" id="catalog-spinner">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
                             </div>
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
-                        <div class="border-start border-4 px-4 pt-2">
-                            <h2><b id="welcome-title">Welcome to DLfilter.</b><small class="form-text"
-                                    id="welcome-version">ver/-</small></h2>
-                            <p id="welcome-subtitle">A place to filter anything you love on DLsite</p>
-                            <p class="visually-hidden text-muted" id="search-info"><span id="search-info-count">-</span>
-                                works (<span id="search-info-time">-</span> seconds) <span class="vr mx-2"></span>
-                                Showing <span id="search-info-start"></span> - <span id="search-info-end"></span>
-                                results:</p>
-                            <h5 id="welcome-start-hint" class="collapse show">Start by adding genres or typing the work
-                                ID in the search panel.
-                            </h5>
-                        </div>
-                    </div>
+                        <div class="row g-4" id="catalog-card-container"></div>
+                        <nav class="mt-4" aria-label="Catalog pages">
+                            <ul class="pagination justify-content-center flex-wrap" id="catalog-pagination"></ul>
+                        </nav>
+                        <hr>
+                    </section>
                     <div class="d-flex justify-content-center visually-hidden" id="loading-spinner-container">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
@@ -911,20 +1029,18 @@
                             </div>
                         </div> -->
                     </div>
-                    <div class="row my-4 text-center">
+                    <div class="row mt-4 mb-0 text-center result-footer">
                         <div class="mb-4" id="search-end-of-result" style="display: none;"></div>
                         <nav aria-label="Page navigation">
                             <ul class="pagination justify-content-center" id="pagination-container"></ul>
                         </nav>
-                        <div class="mb-3">
+                        <div class="mb-0">
                             <small class="py-1 px-2 border rounded-3" id="welcome-info">Collection of <span
                                     id="banner-text">-</span> works since the
                                 millennium - Last updated
                                 on
                                 <span id="navbar-time">-</span></small>
                         </div>
-                        <small>Made with 🔞 by <a href="https://github.com/snowmeow2/DLfilter"
-                                target="_blank">snowmeow2</a></small>
                     </div>
 
                 </div>

@@ -1,0 +1,12 @@
+.git
+.github
+.venv
+.pytest_cache
+**/__pycache__
+database
+presets
+docs
+tests
+*.ipynb
+*.bak
+*.tmp

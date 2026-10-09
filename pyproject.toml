@@ -1,0 +1,55 @@
+[project]
+name = "dlfilter"
+version = "2.1.0"
+description = "Tag-semantic search engine for DLsite works."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "pandas>=2.2",
+    "requests>=2.32",
+    "torch>=2.6",
+]
+
+[project.optional-dependencies]
+# Only needed by initial.py for crawling DLsite and computing genre embeddings.
+update = [
+    "beautifulsoup4>=4.12",
+    "sentence-transformers>=3.0",
+    # transformers 5.x cannot build the MLuke tokenizer used by the default model.
+    "transformers>=4.41,<5",
+    "sentencepiece>=0.2",
+    # transformers needs it to convert the MLuke SentencePiece tokenizer.
+    "protobuf>=5",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx2",
+]
+
+[tool.uv]
+package = false
+
+# The app only runs torch on CPU; this avoids the multi-GB CUDA wheels on Linux.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = [
+    "model: needs the local embedding model cache (set DLFILTER_MODEL_PATH)",
+]
+addopts = "-m 'not model'"

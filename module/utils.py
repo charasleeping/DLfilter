@@ -1,6 +1,17 @@
 import numpy as np
 import pandas as pd
+import torch
 from scipy.stats import norm
+
+
+def cos_sim(query: torch.Tensor, works: torch.Tensor) -> torch.Tensor:
+    """
+    Cosine similarity between one query vector of shape (d,) and each row of `works` (n, d).
+    Same computation as `sentence_transformers.util.cos_sim(query, works)[0]`.
+    """
+    query = torch.nn.functional.normalize(query.unsqueeze(0), p=2, dim=1)
+    works = torch.nn.functional.normalize(works, p=2, dim=1)
+    return torch.mm(query, works.transpose(0, 1))[0]
 
 
 def dlCount_fitting(df: pd.DataFrame) -> tuple[float, float]:
