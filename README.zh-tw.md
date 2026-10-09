@@ -101,7 +101,7 @@ pip install -r requirements.txt
 
 3. 初始化資料庫。有兩種方式：
 - 從**[這裡](https://drive.google.com/file/d/1Jod-iFufGW3lIyqttlws9hOqK4k79ha8/view?usp=sharing)**下載預先建好的資料庫，並將內容解壓縮到 `DLfilter/database/`（約 130 MB，解壓縮後約 1 GB）
-> 預先建好的資料庫更新至 2023-07-10。你之後可能想要[自行更新](docs/database.zh-tw.md#更新資料庫)。
+> 預先建好的資料庫更新至 2026-10-09。你之後可能想要[自行更新](docs/database.zh-tw.md#更新資料庫)。
 
 - 自行初始化資料庫。請參閱[這裡](docs/database.zh-tw.md#初始化資料庫)。
 
