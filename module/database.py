@@ -13,6 +13,9 @@ import pandas as pd
 
 TABLE = "maniax"
 
+# Official titles of one work under the other languages it offers; NULL when it has none.
+TITLE_COLUMNS = {"ENG": "name_ENG", "CHI_HANT": "name_CHI_HANT", "CHI_HANS": "name_CHI_HANS"}
+
 # Columns read by app.py and the frontend.
 REQUIRED_COLUMNS = {
     "index",
@@ -89,6 +92,54 @@ def validate_database(path: Path, expected_rows: int) -> None:
         rows = conn.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0]
         if rows != expected_rows:
             raise ValueError(f"Expected {expected_rows} rows but found {rows}.")
+
+
+def add_localized_titles(df: pd.DataFrame, titles: dict) -> pd.DataFrame:
+    """Add the `name_ENG`, `name_CHI_HANT` and `name_CHI_HANS` columns from `titles` (see `title_table`)."""
+    for lang, column in TITLE_COLUMNS.items():
+        df[column] = [(titles.get(workno) or {}).get(lang) for workno in df.index]
+    return df
+
+
+def add_translation_editions(df: pd.DataFrame, translations: dict) -> pd.DataFrame:
+    """
+    Add one row per recorded translated edition whose original work is in `df`.
+    An edition copies its original's row (genres, ratings, ...) and uses its own title, circle, date and options.
+    Adds the columns `lang`, `originalWorkno`, `originalLang` and `originalName`, which are NULL for other rows.
+    """
+    for column in ("lang", "originalWorkno", "originalLang", "originalName"):
+        df[column] = None
+
+    found = [
+        (workno, info)
+        for workno, info in translations.items()
+        if info.get("lang") and info["originalWorkno"] in df.index and workno not in df.index
+    ]
+    if not found:
+        return df
+
+    editions = df.loc[[info["originalWorkno"] for _, info in found]].copy()
+    editions["originalName"] = editions["name"]
+    for column in TITLE_COLUMNS.values():
+        if column in editions:
+            editions[column] = None
+    editions.index = [workno for workno, _ in found]
+    for column in ("name", "maker", "makerId", "siteId"):
+        editions[column] = [info.get(column) or old for (_, info), old in zip(found, editions[column])]
+    editions["registDate"] = [
+        pd.to_datetime(info["registDate"]) if info.get("registDate") else old
+        for (_, info), old in zip(found, editions["registDate"])
+    ]
+    editions["options"] = [
+        "#" + info["options"] + "#" if info.get("options") else old
+        for (_, info), old in zip(found, editions["options"])
+    ]
+    editions["lang"] = [info["lang"] for _, info in found]
+    editions["originalWorkno"] = [info["originalWorkno"] for _, info in found]
+    editions["originalLang"] = [info["originalLang"] for _, info in found]
+
+    print(f"Adding {len(editions)} translated editions.")
+    return pd.concat([df, editions])
 
 
 def export_works(df: pd.DataFrame, path: Path) -> Path | None:

@@ -2,10 +2,13 @@ import time
 import os
 import re
 import json
+import threading
 import requests
 import pandas as pd
 import numpy as np
 import pickle
+from collections.abc import Callable, Iterable, Sequence
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,6 +16,244 @@ from typing import Any
 headers = {"User-Agent": "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/22.0"}
 REQUEST_TIMEOUT = 30
 MAX_ATTEMPTS = 5
+TRANSLATION_LANGS = ("ENG", "CHI_HANT", "CHI_HANS")
+# DLsite returns an edition's own title only when asked for the matching locale.
+EDITION_LOCALES = {"ENG": "en_US", "CHI_HANT": "zh_TW", "CHI_HANS": "zh_CN"}
+LISTING_PAGE_SIZE = 100
+CHECKPOINT_EVERY = 200
+DEFAULT_WORKERS = 6
+DEFAULT_RATE = 4.0
+# The search listing is stricter than the product API: at 4 requests per second it answered 403.
+LISTING_RATE = 1.0
+MAX_INTERVAL = 4.0
+THROTTLE_PAUSE = 30
+
+# Language names accepted on the command line; JA is the original language, so it needs nothing fetched.
+LANGUAGE_ALIASES = {
+    "JA": None,
+    "JPN": None,
+    "EN": "ENG",
+    "ENG": "ENG",
+    "TC": "CHI_HANT",
+    "CHI_HANT": "CHI_HANT",
+    "SC": "CHI_HANS",
+    "CHI_HANS": "CHI_HANS",
+}
+
+
+def _tokens(values: Iterable[str]) -> list[str]:
+    return [token.upper() for value in values for token in re.split(r"[,\s]+", value) if token]
+
+
+def parse_languages(values: Iterable[str]) -> list[str]:
+    """
+    Turn `JA EN TC SC NONE` (or `en,tc`) into the DLsite translation languages to fetch, in a fixed order.
+    JA and NONE select no translations.
+
+    Raises
+    ------
+    ValueError
+        If a name is unknown or NONE is combined with other names.
+    """
+    tokens = _tokens(values)
+    if "NONE" in tokens:
+        if len(tokens) > 1:
+            raise ValueError("NONE cannot be combined with other languages.")
+        return []
+    langs = set()
+    for token in tokens:
+        if token not in LANGUAGE_ALIASES:
+            raise ValueError(f"Unknown language {token!r}. Use JA, EN, TC, SC or NONE.")
+        if LANGUAGE_ALIASES[token]:
+            langs.add(LANGUAGE_ALIASES[token])
+    return [lang for lang in TRANSLATION_LANGS if lang in langs]
+
+
+def parse_remove_targets(values: Iterable[str]) -> str | list[str]:
+    """
+    Turn the values of `--remove` into `"ALL"` or a list of translation languages.
+
+    Raises
+    ------
+    ValueError
+        If originals are named (translated rows depend on them, so only ALL removes them) or ALL is mixed in.
+    """
+    tokens = _tokens(values)
+    if "ALL" in tokens:
+        if len(tokens) > 1:
+            raise ValueError("ALL cannot be combined with other targets.")
+        return "ALL"
+    if "JA" in tokens or "JPN" in tokens:
+        raise ValueError("Original works cannot be removed on their own; use ALL to remove every work.")
+    return parse_languages(tokens)
+
+
+class RateLimiter:
+    """
+    Spaces requests from all threads at most `rate` per second, and can hold every thread back for a while.
+    Each new pause also doubles the spacing (up to MAX_INTERVAL), so a run settles at a speed DLsite accepts.
+    """
+
+    def __init__(self, rate: float):
+        self.interval = 1 / rate
+        self._lock = threading.Lock()
+        self._next = 0.0
+        self._blocked_until = 0.0
+
+    def wait(self) -> None:
+        while True:
+            with self._lock:
+                now = time.monotonic()
+                start = max(self._next, self._blocked_until)
+                if start <= now:
+                    self._next = now + self.interval
+                    return
+            time.sleep(start - now)
+
+    def pause(self, seconds: float) -> None:
+        with self._lock:
+            now = time.monotonic()
+            if now >= self._blocked_until:
+                # Only the first of several simultaneous refusals slows the run down.
+                self.interval = min(self.interval * 2, max(MAX_INTERVAL, self.interval))
+                print(f"DLsite is refusing requests; pausing {seconds:g} s and slowing to {1 / self.interval:.2g}/s.")
+            self._blocked_until = max(self._blocked_until, now + seconds)
+
+
+_local = threading.local()
+
+
+def _session() -> requests.Session:
+    session = getattr(_local, "session", None)
+    if session is None:
+        session = _local.session = requests.Session()
+        session.headers.update(headers)
+    return session
+
+
+def _retry_after(response: requests.Response, attempt: int) -> float:
+    """Seconds to back off after HTTP 403/429: Retry-After if sent, else THROTTLE_PAUSE doubling per attempt."""
+    try:
+        return max(float(response.headers.get("Retry-After", "")), 1)
+    except ValueError:
+        return THROTTLE_PAUSE * 2 ** (attempt - 1)
+
+
+def _request_json(url: str, label: str, limiter: RateLimiter | None = None) -> Any:
+    """
+    GET `url` as JSON, retrying with exponential backoff and raising after MAX_ATTEMPTS failures.
+    HTTP 403 and 429 make the limiter hold every thread back for the backoff time.
+    """
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        if limiter:
+            limiter.wait()
+        delay = 5 * 2 ** (attempt - 1)
+        try:
+            response = _session().get(url, timeout=REQUEST_TIMEOUT)
+            if response.status_code in (403, 429):
+                delay = _retry_after(response, attempt)
+                if limiter:
+                    limiter.pause(delay)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            if attempt == MAX_ATTEMPTS:
+                raise RuntimeError(f"Failed to fetch {label} after {MAX_ATTEMPTS} attempts ({e}).") from e
+            print(f"Error fetching {label}: {e}. Retrying in {delay:g} seconds ({attempt}/{MAX_ATTEMPTS})...")
+            time.sleep(delay)
+
+
+def run_parallel(
+    tasks: Iterable[Any],
+    work: Callable[[Any], Any],
+    on_result: Callable[[Any], None],
+    workers: int,
+    desc: str,
+    limit: int | None = None,
+    checkpoint: Callable[[], None] | None = None,
+    unit: str = "work",
+) -> int:
+    """
+    Run `work(task)` on a thread pool and pass every result to `on_result` on the calling thread, so the caller's
+    tables need no locks. At most `limit` tasks run. `checkpoint` is called every CHECKPOINT_EVERY results and
+    once more when the run ends for any reason, including Ctrl-C and errors, which are re-raised.
+
+    Returns
+    -------
+    int
+        The number of tasks completed.
+    """
+    from tqdm import tqdm
+
+    tasks = list(tasks)
+    if limit is not None:
+        tasks = tasks[:limit]
+    done = 0
+    pending: set = set()
+    queue = iter(tasks)
+    executor = ThreadPoolExecutor(max_workers=workers)
+    bar = tqdm(total=len(tasks), desc=desc, unit=unit, disable=None)
+    try:
+        while True:
+            while len(pending) < workers * 8:
+                task = next(queue, None)
+                if task is None:
+                    break
+                pending.add(executor.submit(work, task))
+            if not pending:
+                break
+            finished, pending = wait(pending, return_when=FIRST_COMPLETED)
+            for future in finished:
+                on_result(future.result())
+                done += 1
+                bar.update(1)
+                if checkpoint and done % CHECKPOINT_EVERY == 0:
+                    checkpoint()
+        executor.shutdown()
+    except BaseException:
+        executor.shutdown(wait=False, cancel_futures=True)
+        raise
+    finally:
+        bar.close()
+        if checkpoint and done:
+            checkpoint()
+    return done
+
+
+def remove_translation_data(path: str, langs: Sequence[str], dry_run: bool = False) -> tuple[int, int]:
+    """
+    Delete the editions and the localised titles of `langs` from `translation_table.json` and `title_table.json`.
+
+    Returns
+    -------
+    tuple[int, int]
+        The number of editions and of title entries removed (or that would be, for a dry run).
+    """
+    counts = [0, 0]
+    for index, name in enumerate(("translation_table.json", "title_table.json")):
+        file = os.path.join(path, name)
+        if not os.path.isfile(file):
+            continue
+        with open(file, "r", encoding="utf-8") as f:
+            table = json.load(f)
+
+        if index == 0:
+            for workno in [k for k, v in table.items() if v.get("lang") in langs]:
+                del table[workno]
+                counts[0] += 1
+        else:
+            for workno in list(table):
+                for lang in [lang for lang in langs if lang in table[workno]]:
+                    del table[workno][lang]
+                    counts[1] += 1
+                if not table[workno]:
+                    del table[workno]
+
+        if not dry_run and counts[index]:
+            with open(file + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(table, f, ensure_ascii=False)
+            os.replace(file + ".tmp", file)
+    return counts[0], counts[1]
 
 
 class DLsiteCatalog:
@@ -55,6 +296,8 @@ class DLsiteCatalog:
         path : str, optional
             The path of the catalogue. If `path` is "", create a new catalogue. The default is "".
         """
+        self.translation_table = {}
+        self.title_table = {}
         if path == "":
             self.works_table = {}
             self.dates_table = {}
@@ -63,11 +306,19 @@ class DLsiteCatalog:
                 self.works_table = json.load(f)
             with open(os.path.join(path, "dates_table.json"), "r", encoding="utf-8") as f:
                 self.dates_table = json.load(f)
+            translation_path = os.path.join(path, "translation_table.json")
+            if os.path.isfile(translation_path):
+                with open(translation_path, "r", encoding="utf-8") as f:
+                    self.translation_table = json.load(f)
+            title_path = os.path.join(path, "title_table.json")
+            if os.path.isfile(title_path):
+                with open(title_path, "r", encoding="utf-8") as f:
+                    self.title_table = json.load(f)
 
     def get_data_duration(self, date1: str, date2: str):
         """
-        Get the work data from `date1` to `date2`. Will call get_data_one_day() for updating `self.works_table`.
-        Raise error if `date2` is same as or earlier than `date1`.
+        Get the work data from `date1` to `date2`, both included. Will call get_data_one_day() for updating `self.works_table`.
+        Raise error if `date2` is earlier than `date1`; the same day is allowed and crawls that day again.
 
         Parameters
         ----------
@@ -79,8 +330,8 @@ class DLsiteCatalog:
         d1 = datetime.strptime(date1, "%Y-%m-%d")
         d2 = datetime.strptime(date2, "%Y-%m-%d")
         duration = (d2 - d1).days
-        if duration <= 0:
-            print("Error: date2 must be later than date1.")
+        if duration < 0:
+            print("Error: date2 must not be earlier than date1.")
         else:
             for i in range(duration + 1):
                 date = (d1 + timedelta(i)).strftime("%Y-%m-%d")
@@ -127,6 +378,213 @@ class DLsiteCatalog:
             json.dump(self.works_table, f)
         with open(os.path.join(path, "dates_table.json"), "w", encoding="utf-8") as f:
             json.dump(self.dates_table, f)
+        self.save_translations(path)
+
+    def save_translations(self, path: str):
+        """Save only the translation and title tables, so long crawls can checkpoint without rewriting `works_table`."""
+        for name, table in (("translation_table.json", self.translation_table), ("title_table.json", self.title_table)):
+            target = os.path.join(path, name)
+            with open(target + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(table, f, ensure_ascii=False)
+            os.replace(target + ".tmp", target)
+
+    def title_tasks(self, langs: Sequence[str] = TRANSLATION_LANGS) -> list[tuple[str, list[str]]]:
+        """
+        The works whose localised titles in `langs` are not recorded yet, newest first, as (work ID, languages).
+        Only works offered in Japanese plus the language are included, because only they have one ID per language.
+        """
+        tasks = []
+        for workno, work in self.works_table.items():
+            options = work.get("options") or []
+            if "JPN" not in options:
+                continue
+            recorded = self.title_table.get(workno, {})
+            missing = [lang for lang in langs if lang in options and lang not in recorded]
+            if missing:
+                tasks.append((workno, missing))
+        tasks.sort(key=lambda task: (len(task[0]), task[0]), reverse=True)
+        return tasks
+
+    def fetch_localized_titles(
+        self,
+        path: str,
+        limit: int | None = None,
+        langs: Sequence[str] = TRANSLATION_LANGS,
+        workers: int = DEFAULT_WORKERS,
+        rate: float | None = None,
+    ) -> int:
+        """
+        Record the official titles in `langs` of works that offer those languages under one work ID.
+
+        DLsite shows such a work with a different title per locale, while `works_table` holds the Japanese one.
+        `title_table[workno]` maps each language to its title, or None if it equals the Japanese title.
+        Newest works come first and recorded languages are skipped, so reruns resume. The table is saved to
+        `path` periodically and on exit.
+
+        Parameters
+        ----------
+        limit : int, optional
+            The maximum number of works to look up in this run. The default is unlimited.
+        workers : int
+            The number of parallel requests.
+        rate : float, optional
+            The maximum number of requests per second in total. The default is DEFAULT_RATE.
+
+        Returns
+        -------
+        int
+            The number of works looked up.
+        """
+        limiter = RateLimiter(rate or DEFAULT_RATE)
+
+        def lookup(task: tuple[str, list[str]]) -> tuple[str, dict[str, str | None]]:
+            workno, missing = task
+            japanese = self.works_table[workno].get("name")
+            titles = {}
+            for lang in missing:
+                url = f"https://www.dlsite.com/maniax/api/=/product.json?workno={workno}&locale={EDITION_LOCALES[lang]}"
+                data = _request_json(url, workno, limiter)
+                title = data[0].get("work_name") if data else None
+                titles[lang] = title if title and title != japanese else None
+            return workno, titles
+
+        def store(result: tuple[str, dict[str, str | None]]) -> None:
+            workno, titles = result
+            self.title_table.setdefault(workno, {}).update(titles)
+
+        return run_parallel(
+            self.title_tasks(langs), lookup, store, workers, "Titles", limit, lambda: self.save_translations(path)
+        )
+
+    @staticmethod
+    def list_language_page(lang: str, page: int, limiter: RateLimiter | None = None) -> tuple[list[str], int]:
+        """
+        Get one page of the DLsite search results for works offered in `lang`, newest first.
+        The results mix original works with their translated editions.
+
+        Returns
+        -------
+        tuple[list[str], int]
+            The work IDs on the page and the total number of results.
+        """
+        url = (
+            "https://www.dlsite.com/maniax/fsr/ajax/=/language/jp/order/release_d"
+            f"/options%5B0%5D/{lang}/options_and_or/and/per_page/{LISTING_PAGE_SIZE}/page/{page}/from/fs.header"
+        )
+        data = _request_json(url, f"{lang} listing page {page}", limiter)
+        ids = re.findall(r'data-list_item_product_id="(RJ\d+)"', data["search_result"])
+        return list(dict.fromkeys(ids)), int(data["page_info"]["count"])
+
+    @staticmethod
+    def get_translation_info(workno: str, lang: str = "ENG", limiter: RateLimiter | None = None) -> dict[str, Any]:
+        """
+        Look up `workno` on DLsite and describe it as a translated edition.
+
+        Parameters
+        ----------
+        lang : str
+            The edition language expected, which selects the locale of the returned title and circle.
+            If the work turns out to be an edition in another language, it is looked up again for that one.
+
+        Returns
+        -------
+        dict
+            For an official ENG, CHI_HANT or CHI_HANS edition: its language, original work ID and language,
+            and the edition's own title, circle, release date, options and site.
+            Otherwise (original work, other language, unavailable): `{"lang": None}`.
+        """
+        url = f"https://www.dlsite.com/maniax/api/=/product.json?workno={workno}&locale={EDITION_LOCALES[lang]}"
+        data = _request_json(url, workno, limiter)
+        now = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+        if not data:
+            return {"lang": None, "fetchedAt": now}
+
+        product = data[0]
+        info = product.get("translation_info") or {}
+        actual, original = info.get("lang"), info.get("original_workno")
+        if actual not in TRANSLATION_LANGS or not original or original == workno:
+            return {"lang": None, "fetchedAt": now}
+        if actual != lang:
+            return DLsiteCatalog.get_translation_info(workno, actual, limiter)
+
+        editions = {e["workno"]: e.get("lang") for e in product.get("language_editions") or []}
+        return {
+            "lang": lang,
+            "originalWorkno": original,
+            "originalLang": editions.get(original) or "JPN",
+            "name": product["work_name"],
+            "maker": product.get("maker_name"),
+            "makerId": product.get("maker_id"),
+            "registDate": product.get("regist_date"),
+            "options": product.get("options"),
+            "siteId": product.get("site_id"),
+            "fetchedAt": now,
+        }
+
+    def fetch_translations(
+        self,
+        path: str,
+        limit: int | None = None,
+        langs: Sequence[str] = TRANSLATION_LANGS,
+        workers: int = DEFAULT_WORKERS,
+        rate: float | None = None,
+    ) -> int:
+        """
+        Find the official editions in `langs` that have their own work ID and record them in `translation_table`.
+
+        Every listing page is scanned, but only IDs that are in neither `works_table` nor `translation_table`
+        are looked up, so reruns resume where an interrupted run stopped. The table is saved to `path`
+        periodically and on exit.
+
+        Parameters
+        ----------
+        path : str
+            The directory to save `translation_table.json`.
+        limit : int, optional
+            The maximum number of works to look up in this run. The default is unlimited.
+        workers : int
+            The number of parallel requests.
+        rate : float, optional
+            The maximum number of requests per second in total. The default is DEFAULT_RATE.
+
+        Returns
+        -------
+        int
+            The number of works looked up.
+        """
+        limiter = RateLimiter(rate or DEFAULT_RATE)
+        listing_limiter = RateLimiter(min(rate or DEFAULT_RATE, LISTING_RATE))
+
+        # First collect the unknown IDs, newest first, so that a limit keeps the newest editions.
+        unknown: dict[str, str] = {}
+        for lang in langs:
+            ids, total = self.list_language_page(lang, 1, listing_limiter)
+            pages = {1: ids}
+            run_parallel(
+                range(2, -(-total // LISTING_PAGE_SIZE) + 1),
+                lambda page: (page, self.list_language_page(lang, page, listing_limiter)[0]),
+                lambda result: pages.__setitem__(*result),
+                workers,
+                f"Listing {lang}",
+                unit="page",
+            )
+            for page in sorted(pages):
+                for workno in pages[page]:
+                    if workno not in self.works_table and workno not in self.translation_table:
+                        unknown.setdefault(workno, lang)
+
+        def store(result: tuple[str, dict[str, Any]]) -> None:
+            self.translation_table[result[0]] = result[1]
+
+        return run_parallel(
+            unknown.items(),
+            lambda task: (task[0], self.get_translation_info(task[0], task[1], limiter)),
+            store,
+            workers,
+            "Editions",
+            limit,
+            lambda: self.save_translations(path),
+        )
 
     def print_date(self) -> datetime:
         """

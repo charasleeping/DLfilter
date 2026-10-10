@@ -194,15 +194,30 @@ html {
     opacity: 0.6;
 }
 
-.lang-glyph-old {
+/* every language glyph stays in the button, so its font is loaded before the first press */
+.lang-strip-glyph {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
+    opacity: 0;
+    transform: translateX(calc(var(--offset, 0) * 100%));
+    transition: transform 0.32s ease-in-out, opacity 0.32s ease-in-out;
+    pointer-events: none;
 }
 
-/* shows the language the button switches to */
+.lang-strip-glyph.active {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .lang-strip-glyph {
+        transition: none;
+    }
+}
+
+/* the current language; pressing slides in the next one */
 .lang-glyph {
     font-size: 1.35rem;
     font-weight: 600;
@@ -523,6 +538,50 @@ input.hint-highlight {
     white-space: nowrap;
     text-overflow: ellipsis;
     overflow: hidden;
+}
+
+/* translucent switch on the thumbnail: knob left shows the edition title, right the original title */
+.title-toggle {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.5rem;
+    width: 2.6rem;
+    height: 1.5rem;
+    padding: 0;
+    border: 1px solid rgba(var(--bs-body-color-rgb), 0.25);
+    border-radius: 1rem;
+    backdrop-filter: blur(10px);
+    background-color: rgba(var(--bs-body-color-rgb), 0.25);
+    color: var(--bs-body-bg);
+}
+
+.title-toggle:hover {
+    background-color: rgba(var(--bs-body-color-rgb), 0.5);
+}
+
+.title-toggle-knob {
+    position: absolute;
+    top: 1px;
+    left: 1px;
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: rgba(var(--bs-body-color-rgb), 0.6);
+    font-size: 0.75rem;
+    transition: transform 0.2s ease-in-out;
+}
+
+.title-toggle[aria-checked="true"] .title-toggle-knob {
+    transform: translateX(1.1rem);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .title-toggle-knob {
+        transition: none;
+    }
 }
 
 #genre-container,

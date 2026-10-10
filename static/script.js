@@ -21,7 +21,7 @@ const work_format_class = {
     "Miscellaneous": "light"
 }
 
-const version = "1.0";
+const version = "2.0";
 // slider position -> server weight function: lower popular genres, none, lower unpopular genres
 const popularity_weight_func = [1, 4, 2];
 const SUN_ICON = `<svg class="sun-icon" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
@@ -1113,9 +1113,8 @@ $(document).ready(function () {
         applyTheme($("html").attr("data-bs-theme"));
         const next_lang = language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length];
         const language_label = `${localisation.language_button[lang]}: ${language_names[lang]} → ${language_names[next_lang]}`;
-        $("#lang-toggle")
-            .attr({ "aria-label": language_label, "title": language_label })
-            .html($("<span>", { "class": "lang-glyph" }).text(language_glyphs[next_lang]));
+        $("#lang-toggle").attr({ "aria-label": language_label, "title": language_label });
+        showLanguageGlyph();
         $("#similar-reset-label").text(localisation.reset_label[lang]);
         $("#similar-random-label").text(localisation.random_label[lang]);
         $("#catalog-hint").html(localisation.catalog_hint[lang]);
@@ -1151,19 +1150,23 @@ $(document).ready(function () {
     }
 
     $("#lang-toggle").click(function () {
-        const old_glyph = this.firstElementChild ? this.firstElementChild.cloneNode(true) : null;
         changeLanguage(language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length]);
-        if (!old_glyph || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            return;
-        }
-        // the previous glyph leaves to the left while the next one comes in from the right
-        const options = { duration: 320, easing: "ease-in-out" };
-        old_glyph.classList.add("lang-glyph-old");
-        this.append(old_glyph);
-        old_glyph.animate([{ transform: "translateX(0)", opacity: 1 }, { transform: "translateX(-150%)", opacity: 0 }], options)
-            .finished.then(() => old_glyph.remove());
-        this.firstElementChild.animate([{ transform: "translateX(150%)", opacity: 0 }, { transform: "translateX(0)", opacity: 1 }], options);
     });
+
+    // The glyphs are created once; changing the language only moves them, which the CSS transition animates.
+    function showLanguageGlyph() {
+        const button = $("#lang-toggle");
+        if (!button.children().length) {
+            button.append(language_cycle.map(code => $("<span>", { "class": "lang-glyph lang-strip-glyph", "aria-hidden": "true" }).text(language_glyphs[code])));
+        }
+        const count = language_cycle.length;
+        const current = language_cycle.indexOf(lang);
+        button.children().each(function (index) {
+            // -1 is the glyph that just left, 1 the next one, 2 the one after, hidden
+            this.style.setProperty("--offset", ((index - current + 1 + count) % count) - 1);
+            this.classList.toggle("active", index === current);
+        });
+    }
 
     function changeLanguage(next) {
         lang = next;

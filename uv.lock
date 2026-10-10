@@ -267,6 +267,7 @@ update = [
     { name = "protobuf" },
     { name = "sentence-transformers" },
     { name = "sentencepiece" },
+    { name = "tqdm" },
     { name = "transformers" },
 ]
 
@@ -290,6 +291,7 @@ requires-dist = [
     { name = "sentencepiece", marker = "extra == 'update'", specifier = ">=0.2" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.6" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.6", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "tqdm", marker = "extra == 'update'", specifier = ">=4.66" },
     { name = "transformers", marker = "extra == 'update'", specifier = ">=4.41,<5" },
     { name = "uvicorn", specifier = ">=0.30" },
 ]

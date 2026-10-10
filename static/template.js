@@ -98,8 +98,9 @@ function catalogCardTemplate(work, find_similar_label) {
             this.classList.add("alternative-image");
         });
 
+    const title = $("<b>").text(work.name || rjid);
     const info = $("<div>", { "class": "work-info-container rounded-bottom-3 p-2" }).append(
-        $("<div>", { "class": "work-info-title px-1 pb-1" }).append($("<b>").text(work.name || rjid)),
+        $("<div>", { "class": "work-info-title px-1 pb-1" }).append(title),
         $("<div>", { "class": "row justify-content-start" }).append(
             $("<div>", { "class": "col-8" }).append(
                 $("<a>", { "href": work_url, "target": "_blank", "rel": "noopener noreferrer", "class": "badge work-info-badge rounded-pill shadow-sm border border-light-subtle" }).append(
@@ -124,6 +125,22 @@ function catalogCardTemplate(work, find_similar_label) {
         ),
         info
     );
+
+    const edition_locale = edition_locales[work.lang];
+    const original_locale = edition_locales[work.originalLang];
+    if (work.titleToggle && work.originalName && edition_locale && original_locale) {
+        const glyph = $("<span>", { "class": "title-toggle-knob lang-glyph" }).text(language_glyphs[edition_locale]);
+        const toggle = $("<button>", { "type": "button", "class": "title-toggle", "role": "switch", "aria-checked": "false" }).append(glyph);
+        const show_title = original => {
+            const locale = original ? original_locale : edition_locale;
+            toggle.attr({ "aria-checked": String(original), "aria-label": language_names[locale], "title": language_names[locale] });
+            glyph.text(language_glyphs[locale]);
+            title.text((original ? work.originalName : work.name) || rjid);
+        };
+        toggle.on("click", () => show_title(toggle.attr("aria-checked") !== "true"));
+        show_title(false);
+        thumb.append(toggle);
+    }
 
     const find_similar = rjid_regex.test(rjid)
         ? $("<button>", { "type": "button", "class": "btn btn-sm btn-outline-primary rounded-pill catalog-find-similar", "data-rjid": rjid })

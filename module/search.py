@@ -6,6 +6,8 @@ import unicodedata
 from collections.abc import Sequence
 from typing import Any
 
+from module.database import TITLE_COLUMNS
+
 FIELDS = ("all", "title", "artist", "id")
 MAX_QUERY_LENGTH = 100
 MAX_PAGE = 10_000
@@ -30,7 +32,49 @@ RESULT_COLUMNS = (
     "description",
 )
 
-_TEXT_COLUMNS = {"all": ("name", "maker"), "title": ("name",), "artist": ("maker",), "id": ()}
+# Absent from databases built before translated editions were supported.
+EDITION_COLUMNS = ("lang", "originalWorkno", "originalLang", "originalName")
+TOGGLE_LANGS = {"ENG", "JPN", "CHI_HANT", "CHI_HANS"}
+COLUMN_KEYS = RESULT_COLUMNS + EDITION_COLUMNS + tuple(TITLE_COLUMNS.values())
+
+
+def _columns(conn: sqlite3.Connection) -> set[str]:
+    return {row[1] for row in conn.execute("PRAGMA table_info(maniax)")}
+
+
+def _select_columns(conn: sqlite3.Connection, prefix: str = "") -> list[str]:
+    """SQL select expressions for all result columns, with NULL for optional columns the database lacks."""
+    present = _columns(conn)
+    columns = [f"{prefix}[{column}]" for column in RESULT_COLUMNS]
+    optional = EDITION_COLUMNS + tuple(TITLE_COLUMNS.values())
+    return columns + [f"{prefix}[{c}]" if c in present else f"NULL AS [{c}]" for c in optional]
+
+
+def _finish(work: dict[str, Any], terms: Sequence[str] = ()) -> dict[str, Any]:
+    """
+    Format a result row. If the query matched one of the work's official translated titles rather than its
+    original one, show that title as the work's name and keep the original for the card's title switch.
+    """
+    titles = {lang: work.pop(column) for lang, column in TITLE_COLUMNS.items()}
+    format_work(work)
+    if terms and not work.get("lang") and not all(term in fold(work["name"]) for term in terms):
+        for lang, title in titles.items():
+            if title and all(term in fold(title) for term in terms):
+                work.update(originalName=work["name"], originalLang="JPN", lang=lang, name=title)
+                break
+    work["titleToggle"] = _title_toggle(work, terms) if terms else False
+    return work
+
+
+def _title_toggle(work: dict[str, Any], terms: Sequence[str]) -> bool:
+    """True if the card can switch between the matched edition title and the original title."""
+    original = work.get("originalName")
+    if not original or work.get("lang") == work.get("originalLang"):
+        return False
+    if work.get("lang") not in TOGGLE_LANGS or work.get("originalLang") not in TOGGLE_LANGS:
+        return False
+    folded = fold(original)
+    return not all(term in folded for term in terms)
 
 
 def fold(text: Any) -> Any:
@@ -89,12 +133,12 @@ def random_works(
         where.append("options NOT LIKE ?")
         params.append(f"%#{option}#%")
 
-    columns = ", ".join(f"[{column}]" for column in RESULT_COLUMNS)
+    columns = ", ".join(_select_columns(conn))
     rows = conn.execute(
         f"SELECT {columns} FROM maniax WHERE {' AND '.join(where)} ORDER BY RANDOM() LIMIT ?",
         params + [count],
     ).fetchall()
-    return [format_work(dict(zip(RESULT_COLUMNS, row))) for row in rows]
+    return [_finish(dict(zip(COLUMN_KEYS, row))) for row in rows]
 
 
 def search(
@@ -119,11 +163,19 @@ def search(
     conn.create_function("fold", 1, fold, deterministic=True)
     folded = " ".join(fold(query).split())
     rj_id = folded.upper() if RJ_ID.match(folded.upper()) else None
+    present = _columns(conn)
+    name_columns = ["name"] + [c for c in TITLE_COLUMNS.values() if c in present]
+    text_columns = {
+        "all": name_columns + ["maker"],
+        "title": name_columns,
+        "artist": ["maker"],
+        "id": [],
+    }[field]
 
     where, where_params = [], []
     for term in folded.split():
         pattern = _escape_like(term)
-        clauses = [f"fold({column}) LIKE ? ESCAPE '\\'" for column in _TEXT_COLUMNS[field]]
+        clauses = [f"fold({column}) LIKE ? ESCAPE '\\'" for column in text_columns]
         where_params += [f"%{pattern}%"] * len(clauses)
         if field in ("all", "id"):
             # IDs are ASCII, so SQLite's case-insensitive LIKE needs no fold().
@@ -136,14 +188,13 @@ def search(
     where_params += age_values
     where_sql = " AND ".join(where)
 
-    rank_column = "maker" if field == "artist" else "name"
-    rank_sql = (
-        f"CASE WHEN [index] = ? THEN 0 WHEN fold({rank_column}) = ? THEN 1 "
-        f"WHEN fold({rank_column}) LIKE ? ESCAPE '\\' THEN 2 ELSE 3 END"
-    )
-    rank_params = [rj_id, folded, f"{_escape_like(folded)}%"]
+    rank_columns = ["maker"] if field == "artist" else name_columns
+    exact_sql = " OR ".join(f"fold({c}) = ?" for c in rank_columns)
+    prefix_sql = " OR ".join(f"fold({c}) LIKE ? ESCAPE '\\'" for c in rank_columns)
+    rank_sql = f"CASE WHEN [index] = ? THEN 0 WHEN {exact_sql} THEN 1 WHEN {prefix_sql} THEN 2 ELSE 3 END"
+    rank_params = [rj_id] + [folded] * len(rank_columns) + [f"{_escape_like(folded)}%"] * len(rank_columns)
 
-    columns = ", ".join(f"m.[{column}]" for column in RESULT_COLUMNS)
+    columns = ", ".join(_select_columns(conn, "m."))
     sql = f"""
         WITH hits AS (
             SELECT [index] AS id, name AS title, {rank_sql} AS hit_rank, COUNT(*) OVER () AS total
@@ -162,4 +213,5 @@ def search(
     else:
         total = conn.execute(f"SELECT COUNT(*) FROM maniax WHERE {where_sql}", where_params).fetchone()[0]
 
-    return total, [format_work(dict(zip(RESULT_COLUMNS, row[:-1]))) for row in rows]
+    terms = folded.split()
+    return total, [_finish(dict(zip(COLUMN_KEYS, row[:-1])), terms) for row in rows]
