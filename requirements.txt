@@ -147,6 +147,7 @@ torch==2.14.1+cpu ; sys_platform == 'linux'
     #   sentence-transformers
 tqdm==4.70.1
     # via
+    #   dlfilter
     #   huggingface-hub
     #   sentence-transformers
     #   transformers

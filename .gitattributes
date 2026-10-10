@@ -1,0 +1,8 @@
+*.bat text eol=crlf
+*.command text eol=lf
+
+# Left out of the release zip.
+/.gitattributes export-ignore
+/.github export-ignore
+/tests export-ignore
+/packages-before-model-fix.txt export-ignore

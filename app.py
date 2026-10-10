@@ -559,7 +559,28 @@ async def get_similar_works(query: SimilarityQuery):
     }
 
 
+def open_browser_when_ready(host: str, port: int) -> None:
+    """Open the site in the default browser once the server accepts connections."""
+    import socket
+    import webbrowser
+
+    for _ in range(240):
+        try:
+            socket.create_connection((host, port), timeout=1).close()
+            break
+        except OSError:
+            time.sleep(0.5)
+    else:
+        return
+    webbrowser.open(f"http://{f'[{host}]' if ':' in host else host}:{port}/")
+
+
 if __name__ == "__main__":
+    import sys
+    import threading
+
     import uvicorn
 
+    if "--open" in sys.argv[1:]:
+        threading.Thread(target=open_browser_when_ready, args=(config.HOST, config.PORT), daemon=True).start()
     uvicorn.run(app, host=config.HOST, port=config.PORT)

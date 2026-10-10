@@ -14,6 +14,13 @@ const language_glyphs = {
     zh_TW: "繁",
     zh_CN: "简"
 };
+// DLsite edition language codes to the UI languages that share their glyph and name
+const edition_locales = {
+    ENG: "en_US",
+    JPN: "ja_JP",
+    CHI_HANT: "zh_TW",
+    CHI_HANS: "zh_CN"
+};
 const localisation_words = {
     search: {
         en_US: "Search",

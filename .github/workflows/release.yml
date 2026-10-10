@@ -1,0 +1,30 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the zip
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          name="DLfilter-${TAG}"
+          mkdir dist
+          git archive --format=tar --prefix="${name}/" HEAD | tar -x -C dist
+          # cmd.exe needs CRLF; this is safe to repeat.
+          sed -i 's/\r$//; s/$/\r/' "dist/${name}/start.bat"
+          chmod +x "dist/${name}/start.command"
+          (cd dist && zip -qr "../${name}.zip" "${name}")
+          echo "ZIP=${name}.zip" >> "$GITHUB_ENV"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP }}
+          generate_release_notes: true

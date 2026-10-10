@@ -1,6 +1,10 @@
+import sqlite3
+
 import pytest
 
-from module.search import RESULT_COLUMNS
+from conftest import work as make_work, write_works_db
+from module import search as search_module
+from module.search import EDITION_COLUMNS, RESULT_COLUMNS
 
 
 def search(client, **params):
@@ -135,7 +139,8 @@ def test_response_shape_and_formatting(client):
         "total": 1,
     }
     work = data["results"][0]
-    assert set(work) == set(RESULT_COLUMNS)
+    assert set(work) == set(RESULT_COLUMNS) | set(EDITION_COLUMNS) | {"titleToggle"}
+    assert work["titleToggle"] is False and work["lang"] is None
     assert work["name"] == "Under_score Story"
     assert work["tags"] == ["002"]
     assert work["options"] == ["JPN", "DLP"]
@@ -176,3 +181,52 @@ def test_database_error_is_generic(client, monkeypatch, tmp_path):
     assert response.status_code == 500
     assert response.json()["code"] == "database_error"
     assert "missing.sqlite" not in response.text
+
+
+@pytest.fixture()
+def translated_conn(tmp_path):
+    works = [
+        make_work("RJ01000010", "ふれあいミイちゃん", "ペンギン発電所", name_ENG="Interactive Mii", name_CHI_HANT="互動小咪"),
+        make_work("RJ01000011", "[ENG Ver.] Genesis Mizuki", "Translators Unite", lang="ENG",
+                  originalWorkno="RJ01000012", originalLang="JPN", originalName="創世記ミズキ"),
+        make_work("RJ01000012", "創世記ミズキ", "サークルX"),
+    ]
+    write_works_db(tmp_path / "works.sqlite", works)
+    conn = sqlite3.connect(tmp_path / "works.sqlite")
+    yield conn
+    conn.close()
+
+
+def find(conn, query, field="all"):
+    return search_module.search(conn, query, field, "000", 1, 10)[1]
+
+
+def test_translated_title_matches_and_toggles(translated_conn):
+    (work,) = find(translated_conn, "interactive mii")
+    assert work["index"] == "RJ01000010"
+    assert (work["name"], work["lang"]) == ("Interactive Mii", "ENG")
+    assert (work["originalName"], work["originalLang"]) == ("ふれあいミイちゃん", "JPN")
+    assert work["titleToggle"] is True
+    assert not any(key.startswith("name_") for key in work)
+
+    (work,) = find(translated_conn, "互動")
+    assert (work["name"], work["lang"], work["titleToggle"]) == ("互動小咪", "CHI_HANT", True)
+
+
+def test_original_language_match_has_no_toggle(translated_conn):
+    for query, field in [("ふれあい", "all"), ("ペンギン", "all"), ("RJ01000010", "id"), ("ペンギン", "artist")]:
+        (work,) = find(translated_conn, query, field)
+        assert work["name"] == "ふれあいミイちゃん" and work["lang"] is None and work["titleToggle"] is False
+
+
+def test_translated_title_ranks_and_respects_field(translated_conn):
+    assert [w["index"] for w in find(translated_conn, "Interactive Mii", "title")] == ["RJ01000010"]
+    assert find(translated_conn, "Interactive Mii", "artist") == []
+
+
+def test_separate_edition_toggles_only_for_translated_query(translated_conn):
+    (work,) = find(translated_conn, "genesis")
+    assert (work["index"], work["lang"], work["titleToggle"]) == ("RJ01000011", "ENG", True)
+    assert work["originalName"] == "創世記ミズキ"
+
+    assert [w["index"] for w in find(translated_conn, "創世記")] == ["RJ01000012"]

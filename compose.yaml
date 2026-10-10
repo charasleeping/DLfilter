@@ -30,7 +30,7 @@ services:
       - ./database:/data
       - ${DLFILTER_MODEL_DIR:-./model}:/model:ro
     entrypoint: ["python", "initial.py"]
-    command: ["-u"]
+    command: ["-u", "-s"]
 
 volumes:
   presets:
