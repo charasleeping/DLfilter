@@ -21,7 +21,7 @@ DLfilter
 ### データベースの初期化
 DLfilter を動かすには作品データベースが必要です。
 
-初めて使う場合は、作成済みのデータベースを **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** からダウンロードできます（最終更新：2026-10-10。2000-01-01 以降の原作を日本語タイトルのみで収録。約 190 MB、展開後は約 1.2 GB）。ダウンロード後、ファイルを `DLfilter/database` に展開するか、`python -m module.fetch_database --file <zip>` で zip をインストールしてください。ランチャーと `python -m module.fetch_database` が既定でダウンロードするのと同じファイルです。翻訳作品や翻訳タイトルは含まれず、元のカタログ（`works_table.json`）も含まれないため、`initial.py -u` では更新できず、[翻訳版](#翻訳版)も追加できません。必要な場合は `initial.py -i` で自分で作成してください。
+初めて使う場合は、作成済みのデータベースを **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** からダウンロードできます（最終更新：2026-10-10。2000-01-01 以降の原作を日本語タイトルのみで収録。約 470 MB、展開後は約 3.8 GB）。ダウンロード後、ファイルを `DLfilter/database` に展開するか、`python -m module.fetch_database --file <zip>` で zip をインストールしてください。ランチャーと `python -m module.fetch_database` が既定でダウンロードするのと同じファイルです。翻訳作品や翻訳タイトルは含まれませんが、元のカタログ（`works_table.json`）が含まれているため、これまでどおり `initial.py -u` で更新し、`initial.py -u EN TC SC` で[翻訳版](#翻訳版)を取得できます。自分でカタログを作る場合だけ `initial.py -i` が必要です。
 
 自分で作成する場合は `initial.py -i` を実行します。実行前に、必要なパッケージ（`update` extra を含む）をインストールしてください。
 ```bash

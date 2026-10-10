@@ -21,7 +21,7 @@ DLfilter
 ### 初始化数据库
 DLfilter 需要一个作品数据库才能开始运行。
 
-初次使用时，您可以直接从 **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** 下载预先创建好的数据库（最后更新：2026-10-10；收录 2000-01-01 起、只有日文标题的原作，约 190 MB，解压后约 1.2 GB）。下载后，请将文件解压到 `DLfilter/database` 目录下，或用 `python -m module.fetch_database --file <zip>` 安装该 zip。它与启动器、`python -m module.fetch_database` 默认下载的是同一个文件，不含翻译作品与翻译标题，也不含原始目录（`works_table.json`），因此无法用 `initial.py -u` 更新，也无法加入[翻译](#翻译版本)；若要如此，请用 `initial.py -i` 自行创建。
+初次使用时，您可以直接从 **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** 下载预先创建好的数据库（最后更新：2026-10-10；收录 2000-01-01 起、只有日文标题的原作，约 470 MB，解压后约 3.8 GB）。下载后，请将文件解压到 `DLfilter/database` 目录下，或用 `python -m module.fetch_database --file <zip>` 安装该 zip。它与启动器、`python -m module.fetch_database` 默认下载的是同一个文件，不含翻译作品与翻译标题，但包含原始目录（`works_table.json`），因此可以照常用 `initial.py -u` 更新，并用 `initial.py -u EN TC SC` 获取[翻译](#翻译版本)。只有要自己建立目录时才需要 `initial.py -i`。
 
 如果您希望自行创建数据库，请运行 `initial.py -i` 来初始化数据库。运行时，请确保您的环境中已经安装了所需的包（包含 `update` 额外依赖）：
 ```bash

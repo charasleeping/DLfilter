@@ -29,11 +29,12 @@ def test_accepts_files_inside_a_folder(tmp_path):
 
 
 def test_ignores_unknown_and_unsafe_entries(tmp_path):
-    archive = make_zip(tmp_path / "db.zip", [*REQUIRED_FILES, "../evil.txt", "works_table.json"])
+    archive = make_zip(tmp_path / "db.zip", [*REQUIRED_FILES, "../evil.txt", "title_table.json", "works_table.json"])
     data_dir = tmp_path / "data"
     install_archive(archive, data_dir)
     assert not (tmp_path / "evil.txt").exists()
-    assert not (data_dir / "works_table.json").exists()
+    assert not (data_dir / "title_table.json").exists()
+    assert (data_dir / "works_table.json").exists()
 
 
 def test_incomplete_archive_changes_nothing(tmp_path):

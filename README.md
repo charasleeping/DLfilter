@@ -24,6 +24,8 @@ This repository is [charasleeping's](https://github.com/charasleeping/DLfilter) 
 
 May not be maintained regularly. Please feel free to fork or PR.
 
+BJ and VJ product IDs are not supported yet; support is planned by the end of November 2026.
+
 ## Table of Contents
 [Features](#features) | [What's new in this fork](#whats-new-in-this-fork) | [Installation](#installation) | [Usage](#usage) | [HTTP API](#http-api) | [Roadmap](#roadmap) | [Known issues](#known-issues) | [Credits](#credits)
 
@@ -86,7 +88,7 @@ Python 3.11 – 3.14 is supported (tested on Linux, macOS and Windows).
 1. Download `DLfilter-vX.Y.Z.zip` from the [Releases](https://github.com/charasleeping/DLfilter/releases) page and unzip it.
 2. Double-click `start.bat` (Windows) or `start.command` (macOS; the first time, right-click it and choose **Open**; on Linux run `./start.command`).
 
-The launcher asks before installing [uv](https://docs.astral.sh/uv/), installs the libraries (about 1 GB on the first run), downloads the pre-built database (original works only, about 190 MB) and opens the website in your browser. It has the original works only (Japanese titles), without translations: to get them yourself, see [Manage the database](#manage-the-database). Set `DLFILTER_DB_URL` to download the database from another place, or run `python -m module.fetch_database --file works-db.zip` to install a zip you already have.
+The launcher asks before installing [uv](https://docs.astral.sh/uv/), installs the libraries (about 1 GB on the first run), downloads the pre-built database (original works only, about 470 MB) and opens the website in your browser. It has the original works only (Japanese titles), without translations: to get them yourself, see [Manage the database](#manage-the-database). Set `DLFILTER_DB_URL` to download the database from another place, or run `python -m module.fetch_database --file works-db.zip` to install a zip you already have.
 
 #### From source
 1. Clone the repository:
@@ -108,8 +110,8 @@ pip install -r requirements.txt
 The `update` extra (included in `requirements.txt`) is only needed by `initial.py`. On Linux the CPU-only PyTorch build is installed.
 
 3. Initialize database. There are two ways to do this:
-- Download the pre-built database (latest update: 2026-10-10) from [Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk), then extract the content to `DLfilter/database/` (original works only, ~190 MB, decompressed ~1.2 GB), or install the zip with `python -m module.fetch_database --file <the zip>`
-> The download has the original works up to 2026-10-10 with their Japanese titles only. It has no translated works and no translated-title search, so translations must be fetched yourself with `python initial.py -u EN TC SC`, which can take a long time. Both the Mega download and the default `works-db.zip` used by the launchers and `python -m module.fetch_database` have no raw catalogue, so fetching translations or updating needs one built with `initial.py -i`, see [Manage the database](#manage-the-database).
+- Download the pre-built database (latest update: 2026-10-10) from [Mega](https://mega.nz/file/D4Q3jJYR#UrUQep6zSEqHJ0dZh2LUuGOF6YhO4p07YAjtxbRyaXw), then extract the content to `DLfilter/database/` (original works only, ~470 MB, decompressed ~3.8 GB), or install the zip with `python -m module.fetch_database --file <the zip>`
+> The download has the original works up to 2026-10-10 with their Japanese titles only, so it has no translated works and no translated-title search. It includes the raw catalogue, so you can update it with `python initial.py -u` and fetch translations with `python initial.py -u EN TC SC` as usual; fetching translations can take a long time, see [Manage the database](#manage-the-database).
 
 - Initialize the database by yourself. See [here](docs/database.md#initialize-database) for the instructions.
 
@@ -204,7 +206,7 @@ The round buttons at the top right switch the language (English, Japanese, Tradi
 ### Manage the database
 Run these from the project folder, with `uv run` in front if you use uv. `initial.py` needs the `update` extra (`uv sync --extra update` or `pip install -r requirements.txt`); the launcher scripts do not install it.
 
-> Updating needs the raw catalogue `database/works_table.json` (about 2.6 GB), which the pre-built download does not include. To update your own copy or add translations to it, build the catalogue once with `python initial.py -i`; it crawls every day from the start date you enter and takes many hours. If you only want to search, the pre-built database is enough.
+> Updating needs the raw catalogue `database/works_table.json` (about 2.6 GB), which the pre-built download includes, so `-u` works right after installing it, and `-u EN TC SC` adds the translations. You only need `python initial.py -i` to build the catalogue yourself; it crawls every day from the start date you enter and takes many hours.
 
 > **Warning**: fetching translations takes a long time. On a first run, one update with `EN TC SC` can take several hours, because DLsite is asked about one work at a time and refuses clients that go too fast, so the default speed is deliberately cautious. Start with `-k titles` or `--limit`, and let it run; it can be interrupted and resumed. Later updates only look up new works and are much shorter.
 

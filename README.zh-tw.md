@@ -24,6 +24,8 @@ DLfilter 將 DLsite 的標籤（類型，例如 `治癒`、`純愛`）當作詞�
 
 不一定會定期維護。歡迎自由 fork 或發 PR。
 
+目前尚未支援 BJ 與 VJ 作品編號，預計在 2026 年 11 月底前支援。
+
 ## 目錄
 [功能](#功能) | [本分支的新功能](#本分支的新功能) | [安裝](#安裝) | [使用方式](#使用方式) | [HTTP API](#http-api) | [開發藍圖](#開發藍圖) | [已知問題](#已知問題) | [致謝](#致謝)
 
@@ -86,7 +88,7 @@ DLfilter *無法*依熱門程度搜尋作品，因為那需要即時更新的資
 1. 從 [Releases](https://github.com/charasleeping/DLfilter/releases) 頁面下載 `DLfilter-vX.Y.Z.zip` 並解壓縮。
 2. 按兩下 `start.bat`（Windows）或 `start.command`（macOS；第一次請在檔案上按右鍵並選擇**打開**；Linux 請執行 `./start.command`）。
 
-啟動器會先詢問再安裝 [uv](https://docs.astral.sh/uv/)，接著安裝函式庫（第一次約 1 GB）、下載預先建好的資料庫（只有原作，約 190 MB），並在瀏覽器中開啟網站。不含翻譯（只有日文標題的原作）：如何自行取得翻譯，請見[管理資料庫](#管理資料庫)。設定 `DLFILTER_DB_URL` 可從其他位置下載資料庫；已有 zip 時可執行 `python -m module.fetch_database --file works-db.zip` 安裝。
+啟動器會先詢問再安裝 [uv](https://docs.astral.sh/uv/)，接著安裝函式庫（第一次約 1 GB）、下載預先建好的資料庫（只有原作，約 470 MB），並在瀏覽器中開啟網站。不含翻譯（只有日文標題的原作）：如何自行取得翻譯，請見[管理資料庫](#管理資料庫)。設定 `DLFILTER_DB_URL` 可從其他位置下載資料庫；已有 zip 時可執行 `python -m module.fetch_database --file works-db.zip` 安裝。
 
 #### 從原始碼安裝
 1. 複製儲存庫：
@@ -108,8 +110,8 @@ pip install -r requirements.txt
 `update` 額外套件（已包含在 `requirements.txt`）只有 `initial.py` 會用到。Linux 上會安裝僅 CPU 的 PyTorch。
 
 3. 初始化資料庫。有兩種方式：
-- 從 [Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk) 下載預先建好的資料庫（最後更新：2026-10-10），並將內容解壓縮到 `DLfilter/database/`（只有原作，約 190 MB，解壓縮後約 1.2 GB），或用 `python -m module.fetch_database --file <zip>` 安裝該 zip
-> 下載內容包含截至 2026-10-10 的原作，只有日文標題，沒有翻譯作品，也不能用翻譯標題搜尋，因此翻譯必須自行用 `python initial.py -u EN TC SC` 取得，這可能需要很長的時間。Mega 下載與啟動器、`python -m module.fetch_database` 預設下載的 `works-db.zip` 都不含原始目錄，因此取得翻譯或更新都需要先用 `initial.py -i` 建立，請見[管理資料庫](#管理資料庫)。
+- 從 [Mega](https://mega.nz/file/D4Q3jJYR#UrUQep6zSEqHJ0dZh2LUuGOF6YhO4p07YAjtxbRyaXw) 下載預先建好的資料庫（最後更新：2026-10-10），並將內容解壓縮到 `DLfilter/database/`（只有原作，約 470 MB，解壓縮後約 1.2 GB），或用 `python -m module.fetch_database --file <zip>` 安裝該 zip
+> 下載內容包含截至 2026-10-10 的原作，只有日文標題，因此沒有翻譯作品，也不能用翻譯標題搜尋。它包含原始目錄，所以可以照常用 `python initial.py -u` 更新，並用 `python initial.py -u EN TC SC` 取得翻譯；取得翻譯可能需要很長的時間，請見[管理資料庫](#管理資料庫)。
 
 - 自行初始化資料庫。請參閱[這裡](docs/database.zh-tw.md#初始化資料庫)。
 
@@ -204,7 +206,7 @@ uv run python app.py     # 使用 uv 時的同等指令
 ### 管理資料庫
 請在專案資料夾執行以下指令（使用 uv 時在前面加上 `uv run`）。`initial.py` 需要 `update` 額外套件（`uv sync --extra update` 或 `pip install -r requirements.txt`）；啟動器腳本不會安裝它。
 
-> 更新需要原始目錄 `database/works_table.json`（約 2.6 GB），而預先建好的下載不包含它。若要更新自己的資料庫或為它加入翻譯，請先用 `python initial.py -i` 建立一次目錄；它會爬取你輸入的起始日期之後的每一天，需要數小時以上。如果只是要搜尋，預先建好的資料庫就夠了。
+> 更新需要原始目錄 `database/works_table.json`（約 2.6 GB），預先建好的下載已包含它，所以安裝後可直接用 `-u`，並以 `-u EN TC SC` 加入翻譯。只有要自己建立目錄時才需要 `python initial.py -i`；它會爬取你輸入的起始日期之後的每一天，需要數小時以上。
 
 > **警告**：取得翻譯需要很長的時間。首次執行時，光是用 `EN TC SC` 更新一次就可能需要數小時，因為程式要向 DLsite 逐一查詢作品，而 DLsite 會拒絕速度太快的用戶，所以預設速度刻意設得保守。建議先用 `-k titles` 或 `--limit` 開始，然後讓它跑；可以中斷並接續。之後的更新只會查詢新作品，會短很多。
 

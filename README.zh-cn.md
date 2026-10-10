@@ -24,6 +24,8 @@ DLfilter 将 DLsite 的标签（类型，例如 `治愈`、`纯爱`）当作词�
 
 不一定会定期维护。欢迎随意 fork 或提 PR。
 
+目前尚未支持 BJ 与 VJ 作品编号，预计在 2026 年 11 月底前支持。
+
 ## 目录
 [功能](#功能) | [本分支的新功能](#本分支的新功能) | [安装](#安装) | [使用方法](#使用方法) | [HTTP API](#http-api) | [路线图](#路线图) | [已知问题](#已知问题) | [致谢](#致谢)
 
@@ -86,7 +88,7 @@ DLfilter *无法*按热门程度搜索作品，因为那需要实时更新的数
 1. 从 [Releases](https://github.com/charasleeping/DLfilter/releases) 页面下载 `DLfilter-vX.Y.Z.zip` 并解压。
 2. 双击 `start.bat`（Windows）或 `start.command`（macOS；第一次请右键点击并选择**打开**；Linux 请运行 `./start.command`）。
 
-启动器会先询问再安装 [uv](https://docs.astral.sh/uv/)，接着安装依赖（第一次约 1 GB）、下载预先建好的数据库（只有原作，约 190 MB），并在浏览器中打开网站。不含翻译（只有日文标题的原作）：如何自行获取翻译，请见[管理数据库](#管理数据库)。设置 `DLFILTER_DB_URL` 可从其他位置下载数据库；已有 zip 时可运行 `python -m module.fetch_database --file works-db.zip` 安装。
+启动器会先询问再安装 [uv](https://docs.astral.sh/uv/)，接着安装依赖（第一次约 1 GB）、下载预先建好的数据库（只有原作，约 470 MB），并在浏览器中打开网站。不含翻译（只有日文标题的原作）：如何自行获取翻译，请见[管理数据库](#管理数据库)。设置 `DLFILTER_DB_URL` 可从其他位置下载数据库；已有 zip 时可运行 `python -m module.fetch_database --file works-db.zip` 安装。
 
 #### 从源码安装
 1. 克隆仓库：
@@ -108,8 +110,8 @@ pip install -r requirements.txt
 `update` 额外依赖（已包含在 `requirements.txt`）只有 `initial.py` 会用到。Linux 上会安装仅 CPU 的 PyTorch。
 
 3. 初始化数据库。有两种方式：
-- 从 [Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk) 下载预先建好的数据库（最后更新：2026-10-10），并将内容解压到 `DLfilter/database/`（只有原作，约 190 MB，解压后约 1.2 GB），或用 `python -m module.fetch_database --file <zip>` 安装该 zip
-> 下载内容包含截至 2026-10-10 的原作，只有日文标题，没有翻译作品，也不能用翻译标题搜索，因此翻译必须自行用 `python initial.py -u EN TC SC` 获取，这可能需要很长的时间。Mega 下载与启动器、`python -m module.fetch_database` 默认下载的 `works-db.zip` 都不含原始目录，因此获取翻译或更新都需要先用 `initial.py -i` 创建，请见[管理数据库](#管理数据库)。
+- 从 [Mega](https://mega.nz/file/D4Q3jJYR#UrUQep6zSEqHJ0dZh2LUuGOF6YhO4p07YAjtxbRyaXw) 下载预先建好的数据库（最后更新：2026-10-10），并将内容解压到 `DLfilter/database/`（只有原作，约 470 MB，解压后约 1.2 GB），或用 `python -m module.fetch_database --file <zip>` 安装该 zip
+> 下载内容包含截至 2026-10-10 的原作，只有日文标题，因此没有翻译作品，也不能用翻译标题搜索。它包含原始目录，所以可以照常用 `python initial.py -u` 更新，并用 `python initial.py -u EN TC SC` 获取翻译；获取翻译可能需要很长的时间，请见[管理数据库](#管理数据库)。
 
 - 自行初始化数据库。请参阅[这里](docs/database.zh-cn.md#初始化数据库)。
 
@@ -204,7 +206,7 @@ uv run python app.py     # 使用 uv 时的等同命令
 ### 管理数据库
 请在项目文件夹运行以下命令（使用 uv 时在前面加上 `uv run`）。`initial.py` 需要 `update` 额外依赖（`uv sync --extra update` 或 `pip install -r requirements.txt`）；启动器脚本不会安装它。
 
-> 更新需要原始目录 `database/works_table.json`（约 2.6 GB），而预先建好的下载不包含它。若要更新自己的数据库或为它添加翻译，请先用 `python initial.py -i` 建立一次目录；它会爬取你输入的起始日期之后的每一天，需要数小时以上。如果只是要搜索，预先建好的数据库就够了。
+> 更新需要原始目录 `database/works_table.json`（约 2.6 GB），预先建好的下载已包含它，所以安装后可直接用 `-u`，并以 `-u EN TC SC` 添加翻译。只有要自己建立目录时才需要 `python initial.py -i`；它会爬取你输入的起始日期之后的每一天，需要数小时以上。
 
 > **警告**：获取翻译需要很长的时间。首次运行时，光是用 `EN TC SC` 更新一次就可能需要数小时，因为程序要向 DLsite 逐一查询作品，而 DLsite 会拒绝速度太快的用户，所以默认速度刻意设得保守。建议先用 `-k titles` 或 `--limit` 开始，然后让它跑；可以中断并继续。之后的更新只会查询新作品，会短很多。
 
