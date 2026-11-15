@@ -1,10 +1,11 @@
 const { test, expect } = require('@playwright/test');
 async function open(page) {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
     await expect(page.locator('#copy-tags-btn')).toBeEnabled();
 }
 async function copy(page, id) {
     if (await page.locator('#copy-tags-btn').getAttribute('aria-expanded') !== 'true') await page.locator('#copy-tags-btn').click();
+    await expect(page.locator('#copy-tags-btn')).toHaveAttribute('aria-expanded', 'true');
     await page.locator('#rjid').fill(id);
     await page.locator('#rjid').press('Enter');
 }

@@ -19,6 +19,7 @@ COPY module ./module
 ENTRYPOINT ["python", "initial.py"]
 
 FROM python:3.12-slim-trixie AS helper-build
+RUN apt-get update && apt-get install -y --no-install-recommends binutils && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 RUN pip install --no-cache-dir pyinstaller==6.16.0 certifi==2026.7.22
 COPY scripts/title_helper.py scripts/title_helper.py

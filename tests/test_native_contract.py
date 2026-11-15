@@ -88,8 +88,17 @@ def test_legacy_similarity(native,client,mode,downloads):
     query={'genres':'001+002','ages':'000','weight_func':mode,'dlcount':downloads}
     a=native('/api/similarity',method='POST',json=query).json();b=client.post('/api/similarity',json=query).json()
     assert a['info']['length']==b['info']['length']
-    assert [x[0] for x in a['result']]==[x[0] for x in b['result']]
-    np.testing.assert_allclose([x[1] for x in a['result']],[x[1] for x in b['result']],atol=1e-5)
+    native_scores=dict(a['result']); reference_scores=dict(b['result'])
+    assert native_scores.keys()==reference_scores.keys()
+    # Float32 BLAS kernels may reorder near ties, especially the final matrix rows.
+    # Compare scores by ID, and require every meaningful ordering to agree.
+    for work_id,score in native_scores.items():
+        assert score==pytest.approx(reference_scores[work_id],abs=1e-5)
+    for i,(work_id,score) in enumerate(a['result']):
+        for other_id,other_score in a['result'][i+1:]:
+            assert reference_scores[work_id]>=reference_scores[other_id]-1e-5
+            if score==other_score:
+                assert work_id<other_id
 
 
 def test_random_and_presets(native):
