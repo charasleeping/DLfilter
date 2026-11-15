@@ -3,6 +3,8 @@ import json
 from conftest import PRESETS_DIR, WORKS
 
 PRESET = {
+    "q": "",
+    "field": "all",
     "rj_id": "RJ01000001",
     "genres": ["001", "002"],
     "included_genres": ["003"],
@@ -81,7 +83,7 @@ def test_preset_defaults_fill_missing_fields(client):
     client.put("/api/presets/minimal", json={"genres": ["001"]})
     preset = client.get("/api/presets/minimal").json()["preset"]
     assert preset["release_date"] == {"enabled": False, "value": 5}
-    assert preset["ages"] == [False, False, True]
+    assert preset["ages"] == [True, False, False]
 
 
 def test_preset_rejects_bad_names(client):

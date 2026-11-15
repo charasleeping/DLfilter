@@ -7,7 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
+from module.products import PRODUCT_PATTERN, normalize_id
 
 MAX_PRESETS = 200
 # Letters (any script), digits, spaces, `-` and `_`: no dots or slashes, so a name cannot leave the folder.
@@ -15,7 +16,7 @@ NAME = re.compile(r"^[\w\- ]{1,60}$")
 
 GenreId = Annotated[str, StringConstraints(pattern=r"^[0-9]{3}$")]
 CategoryId = Annotated[str, StringConstraints(pattern=r"^[A-Z0-9]{3}$")]
-GenreList = Annotated[list[GenreId], Field(max_length=100)]
+GenreList = Annotated[list[GenreId], Field(max_length=1000)]
 
 
 class TooManyPresets(Exception):
@@ -34,17 +35,24 @@ class Preset(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    rj_id: Annotated[str, StringConstraints(pattern=r"^(?:RJ(?:\d{8}|\d{6}))?$")] = ""
+    rj_id: Annotated[str, StringConstraints(pattern=r"^(?:(?:RJ|BJ|VJ)(?:[0-9]{8}|[0-9]{6}))?$")] = ""
+    q: str = Field(default="", max_length=100)
+    field: str = Field(default="all", pattern=r"^(all|title|artist|id)$")
     genres: GenreList = []
     included_genres: GenreList = []
     excluded_genres: GenreList = []
-    categories: Annotated[list[CategoryId], Field(max_length=100)] = []
+    categories: Annotated[list[CategoryId], Field(max_length=1000)] = []
     popularity_weight: SliderOption = SliderOption(value=1)
     release_date: SliderOption = SliderOption(value=5)
     download_count: SliderOption = SliderOption(value=50)
-    ages: Annotated[list[bool], Field(min_length=3, max_length=3)] = [False, False, True]
+    ages: Annotated[list[bool], Field(min_length=3, max_length=3)] = [True, False, False]
     excluded_contents: Annotated[list[bool], Field(min_length=5, max_length=5)] = [True] * 5
     advanced_options_open: bool = False
+
+    @field_validator("rj_id", mode="before")
+    @classmethod
+    def normalize_reference(cls, value):
+        return normalize_id(value)
 
 
 def valid_name(name: str) -> bool:

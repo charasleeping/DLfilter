@@ -17,7 +17,7 @@ from module import config
 from module.database import REQUIRED_COLUMNS, TABLE, connect_readonly
 
 PACKAGES = ["fastapi", "starlette", "uvicorn", "pydantic", "numpy", "scipy", "pandas", "torch"]
-UPDATE_PACKAGES = ["sentence-transformers", "transformers", "tokenizers", "sentencepiece", "protobuf", "beautifulsoup4"]
+UPDATE_PACKAGES = ["sentence-transformers", "transformers", "tokenizers", "sentencepiece", "protobuf", "beautifulsoup4", "tqdm"]
 
 
 def version(name: str) -> str:
@@ -56,12 +56,26 @@ def main() -> int:
                 missing = REQUIRED_COLUMNS - columns
                 ok &= check("required columns", not missing, f"missing {sorted(missing)}" if missing else "")
                 rows, latest = conn.execute(f"SELECT COUNT(*), MAX(registDate) FROM {TABLE}").fetchone()
-                check("works", rows > 0, f"{rows} rows, latest registDate {latest}")
+                ok &= check("works", rows > 0, f"{rows} rows, latest registDate {latest}")
+                prefixes = dict(conn.execute(f"SELECT substr([index],1,2), COUNT(*) FROM {TABLE} GROUP BY substr([index],1,2)"))
+                print("  Product coverage: " + ", ".join(f"{prefix}: {prefixes.get(prefix, 0)}" for prefix in ("RJ", "BJ", "VJ")))
+                print("  Thumbnail metadata: " + ("available" if "imageUrl" in columns else "legacy prefix fallback"))
         except Exception as e:
             ok &= check("open database", False, str(e))
     else:
         ok = False
 
+    progress = config.DATA_DIR / "source_dates_table.json"
+    if progress.is_file():
+        import json
+        try:
+            for source, days in json.loads(progress.read_text()).items():
+                print(f"  {source} saved dates: {len(days)}")
+        except (ValueError, OSError):
+            ok &= check("source progress", False, "could not read source_dates_table.json")
+    else:
+        print("  Source progress: legacy RJ history; BJ/VJ backfills must be selected explicitly.")
+    print("  Daily checkpoint: " + ("present" if (config.DATA_DIR / "catalogue_updates.sqlite").is_file() else "not created"))
     print("Genre data:")
     for name in ("genre_table.json", "workformat.json", "genre_vec.pkl"):
         ok &= check(name, (config.DATA_DIR / name).is_file())

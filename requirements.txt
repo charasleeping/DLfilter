@@ -1,27 +1,16 @@
-# Generated from uv.lock for pip users:
-#   uv export --no-hashes --all-extras --no-dev --no-header -o requirements.txt
-# then re-add the index line below (Linux uses the CPU-only PyTorch build).
+# Maintenance dependencies for pip users; serving uses the native Rust executable.
+# Generated with uv export --no-hashes --all-extras --no-dev --no-header
 --extra-index-url https://download.pytorch.org/whl/cpu
-annotated-doc==0.0.5
-    # via fastapi
-annotated-types==0.8.0
-    # via pydantic
-anyio==4.15.1
-    # via starlette
 beautifulsoup4==4.15.0
     # via dlfilter
 certifi==2026.7.22
     # via requests
 charset-normalizer==3.5.2
     # via requests
-click==8.5.0
-    # via uvicorn
 cloudpickle==3.1.2
     # via joblib
 colorama==0.4.6 ; sys_platform == 'win32'
     # via tqdm
-fastapi==0.143.0
-    # via dlfilter
 filelock==4.0.12
     # via
     #   huggingface-hub
@@ -31,8 +20,6 @@ fsspec==2026.9.0
     # via
     #   huggingface-hub
     #   torch
-h11==0.16.0
-    # via uvicorn
 hf-xet==1.7.0 ; platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
     # via huggingface-hub
 huggingface-hub==0.36.2
@@ -41,13 +28,9 @@ huggingface-hub==0.36.2
     #   tokenizers
     #   transformers
 idna==3.20
-    # via
-    #   anyio
-    #   requests
+    # via requests
 jinja2==3.1.6
-    # via
-    #   dlfilter
-    #   torch
+    # via torch
 joblib==1.6.0
     # via scikit-learn
 markupsafe==3.0.4
@@ -76,8 +59,6 @@ numpy==2.5.3 ; python_full_version >= '3.12'
     #   scipy
     #   sentence-transformers
     #   transformers
-opentelemetry-api==1.45.1
-    # via fastapi
 packaging==26.3
     # via
     #   huggingface-hub
@@ -86,10 +67,6 @@ pandas==3.0.6
     # via dlfilter
 protobuf==7.36.2
     # via dlfilter
-pydantic==2.14.0
-    # via fastapi
-pydantic-core==2.50.0
-    # via pydantic
 python-dateutil==2.9.0.post0
     # via pandas
 pyyaml==6.0.3
@@ -127,8 +104,6 @@ six==1.17.0
     # via python-dateutil
 soupsieve==2.10
     # via beautifulsoup4
-starlette==1.7.0
-    # via fastapi
 sympy==1.14.0
     # via torch
 threadpoolctl==3.7.0
@@ -157,24 +132,11 @@ transformers==4.57.6
     #   sentence-transformers
 typing-extensions==4.16.0
     # via
-    #   anyio
     #   beautifulsoup4
-    #   fastapi
     #   huggingface-hub
-    #   opentelemetry-api
-    #   pydantic
-    #   pydantic-core
     #   sentence-transformers
-    #   starlette
     #   torch
-    #   typing-inspection
-typing-inspection==0.4.4
-    # via
-    #   fastapi
-    #   pydantic
 tzdata==2026.5 ; sys_platform == 'emscripten' or sys_platform == 'win32'
     # via pandas
 urllib3==2.8.0
     # via requests
-uvicorn==0.54.0
-    # via dlfilter

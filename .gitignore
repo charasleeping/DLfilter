@@ -4,3 +4,14 @@ __pycache__
 database/*
 presets/
 *.ipynb
+node_modules/
+playwright-report/
+test-results/
+
+/target/
+/bin/
+
+# Frozen helper and release artifacts
+/build/
+/dist/
+/*.spec

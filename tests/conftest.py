@@ -83,6 +83,8 @@ def build_data_dir(path: Path) -> None:
     (path / "workformat.json").write_text(json.dumps(workformat), encoding="utf-8")
     with open(path / "genre_vec.pkl", "wb") as f:
         pickle.dump(vectors, f)
+    from module.export_vectors import export_vectors
+    export_vectors(vectors, path)
     write_works_db(path / "works.sqlite", WORKS)
 
 
@@ -97,7 +99,7 @@ os.environ["DLFILTER_PRESETS_DIR"] = str(PRESETS_DIR)
 def client():
     from fastapi.testclient import TestClient
 
-    import app
+    from reference import python_app as app
 
     with TestClient(app.app) as c:
         yield c

@@ -6,3 +6,11 @@
 /.github export-ignore
 /tests export-ignore
 /packages-before-model-fix.txt export-ignore
+
+/package.json export-ignore
+/package-lock.json export-ignore
+/playwright.config.cjs export-ignore
+
+/scripts export-ignore
+/benchmarks export-ignore
+/.DS_Store export-ignore

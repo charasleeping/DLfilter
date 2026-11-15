@@ -248,59 +248,64 @@ name = "dlfilter"
 version = "2.1.0"
 source = { virtual = "." }
 dependencies = [
-    { name = "fastapi" },
-    { name = "jinja2" },
-    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "pandas" },
     { name = "requests" },
-    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
-    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
-    { name = "torch", version = "2.14.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
-    { name = "torch", version = "2.14.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
-    { name = "uvicorn" },
 ]
 
 [package.optional-dependencies]
+convert = [
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
 update = [
     { name = "beautifulsoup4" },
+    { name = "numpy", version = "2.4.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "numpy", version = "2.5.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "pandas" },
     { name = "protobuf" },
+    { name = "scipy", version = "1.17.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "scipy", version = "1.18.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
     { name = "sentence-transformers" },
     { name = "sentencepiece" },
+    { name = "torch", version = "2.14.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
+    { name = "torch", version = "2.14.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "tqdm" },
     { name = "transformers" },
 ]
 
 [package.dev-dependencies]
 dev = [
+    { name = "fastapi" },
     { name = "httpx2" },
+    { name = "jinja2" },
     { name = "pytest" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", marker = "extra == 'update'", specifier = ">=4.12" },
-    { name = "fastapi", specifier = ">=0.115" },
-    { name = "jinja2", specifier = ">=3.1" },
-    { name = "numpy", specifier = ">=1.26" },
-    { name = "pandas", specifier = ">=2.2" },
+    { name = "numpy", marker = "extra == 'convert'", specifier = ">=1.26" },
+    { name = "numpy", marker = "extra == 'update'", specifier = ">=1.26" },
+    { name = "pandas", marker = "extra == 'update'", specifier = ">=2.2" },
     { name = "protobuf", marker = "extra == 'update'", specifier = ">=5" },
     { name = "requests", specifier = ">=2.32" },
-    { name = "scipy", specifier = ">=1.13" },
+    { name = "scipy", marker = "extra == 'update'", specifier = ">=1.13" },
     { name = "sentence-transformers", marker = "extra == 'update'", specifier = ">=3.0" },
     { name = "sentencepiece", marker = "extra == 'update'", specifier = ">=0.2" },
-    { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.6" },
-    { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.6", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "sys_platform == 'linux' and extra == 'update'", specifier = ">=2.6", index = "https://download.pytorch.org/whl/cpu" },
+    { name = "torch", marker = "sys_platform != 'linux' and extra == 'update'", specifier = ">=2.6" },
     { name = "tqdm", marker = "extra == 'update'", specifier = ">=4.66" },
     { name = "transformers", marker = "extra == 'update'", specifier = ">=4.41,<5" },
-    { name = "uvicorn", specifier = ">=0.30" },
 ]
-provides-extras = ["update"]
+provides-extras = ["convert", "update"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fastapi", specifier = ">=0.115" },
     { name = "httpx2" },
+    { name = "jinja2", specifier = ">=3.1" },
     { name = "pytest", specifier = ">=8" },
+    { name = "uvicorn", specifier = ">=0.30" },
 ]
 
 [[package]]

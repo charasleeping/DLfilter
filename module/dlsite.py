@@ -7,6 +7,9 @@ import requests
 import pandas as pd
 import numpy as np
 import pickle
+from module.products import SOURCES, product_site, PRODUCT_ID
+from module.title_lookup import title_url, extract_title
+from module.catalogue_store import checkpoint, replay
 from collections.abc import Callable, Iterable, Sequence
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from datetime import datetime, timedelta
@@ -296,16 +299,26 @@ class DLsiteCatalog:
         path : str, optional
             The path of the catalogue. If `path` is "", create a new catalogue. The default is "".
         """
+        self.sources = ("maniax",)
+        self.checkpoint_dir = path or None
+        self.source_dates = {}
         self.translation_table = {}
         self.title_table = {}
         if path == "":
             self.works_table = {}
             self.dates_table = {}
         else:
-            with open(os.path.join(path, "works_table.json"), "r", encoding="utf-8") as f:
-                self.works_table = json.load(f)
-            with open(os.path.join(path, "dates_table.json"), "r", encoding="utf-8") as f:
-                self.dates_table = json.load(f)
+            def load(name, default):
+                file = os.path.join(path, name)
+                if not os.path.isfile(file):
+                    return default
+                with open(file, encoding="utf-8") as f:
+                    return json.load(f)
+            self.works_table = load("works_table.json", {})
+            self.dates_table = load("dates_table.json", {})
+            self.source_dates = load("source_dates_table.json", {"maniax": dict(self.dates_table)})
+            replay(path, self.works_table, self.source_dates)
+            self.dates_table = self.source_dates.setdefault("maniax", dict(self.dates_table))
             translation_path = os.path.join(path, "translation_table.json")
             if os.path.isfile(translation_path):
                 with open(translation_path, "r", encoding="utf-8") as f:
@@ -315,7 +328,7 @@ class DLsiteCatalog:
                 with open(title_path, "r", encoding="utf-8") as f:
                     self.title_table = json.load(f)
 
-    def get_data_duration(self, date1: str, date2: str):
+    def get_data_duration(self, date1: str, date2: str, source: str = "maniax"):
         """
         Get the work data from `date1` to `date2`, both included. Will call get_data_one_day() for updating `self.works_table`.
         Raise error if `date2` is earlier than `date1`; the same day is allowed and crawls that day again.
@@ -335,9 +348,9 @@ class DLsiteCatalog:
         else:
             for i in range(duration + 1):
                 date = (d1 + timedelta(i)).strftime("%Y-%m-%d")
-                self.get_data_one_day(date)
+                self.get_data_one_day(date) if source == "maniax" else self.get_data_one_day(date, source)
 
-    def get_data_one_day(self, date: str):
+    def get_data_one_day(self, date: str, source: str = "maniax"):
         """
         Get the work data of `date`. Will call get_outline() for updating `self.works_table`.
         Retries with exponential backoff and raises after MAX_ATTEMPTS failures.
@@ -350,7 +363,7 @@ class DLsiteCatalog:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             try:
                 print(f"Fetching data for {date}...", end="")
-                table = self.get_outline(date)
+                table = self.get_outline(date) if source == "maniax" else self.get_outline(date, source)
                 break
             except Exception as e:
                 print(f"Error: {e}")
@@ -361,8 +374,15 @@ class DLsiteCatalog:
                 time.sleep(delay)
 
         now = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
+        if source not in SOURCES:
+            raise ValueError("Unknown catalogue source")
+        table = [dict(work, siteId=work.get("siteId") or source) for work in table if PRODUCT_ID.fullmatch(work.get("id", ""))]
+        if self.checkpoint_dir:
+            checkpoint(self.checkpoint_dir, source, date, now, table)
         self.works_table.update({work["id"]: work for work in table})
-        self.dates_table.update({date: now})
+        self.source_dates.setdefault(source, {})[date] = now
+        if source == "maniax":
+            self.dates_table.update({date: now})
         print(f"Success ({len(table)} records)")
 
     def save_tables(self, path: str):
@@ -374,10 +394,14 @@ class DLsiteCatalog:
         path : str
             The path to save the catalogues.
         """
-        with open(os.path.join(path, "works_table.json"), "w", encoding="utf-8") as f:
-            json.dump(self.works_table, f)
-        with open(os.path.join(path, "dates_table.json"), "w", encoding="utf-8") as f:
-            json.dump(self.dates_table, f)
+        os.makedirs(path, exist_ok=True)
+        self.source_dates["maniax"] = self.dates_table
+        for name, table in (("works_table.json", self.works_table), ("dates_table.json", self.dates_table),
+                            ("source_dates_table.json", self.source_dates)):
+            target = os.path.join(path, name)
+            with open(target + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(table, f)
+            os.replace(target + ".tmp", target)
         self.save_translations(path)
 
     def save_translations(self, path: str):
@@ -395,6 +419,9 @@ class DLsiteCatalog:
         """
         tasks = []
         for workno, work in self.works_table.items():
+            site = work.get("siteId") or product_site(workno)
+            if site not in self.sources and not (workno.startswith(("RJ", "BJ")) and product_site(workno) in self.sources):
+                continue
             options = work.get("options") or []
             if "JPN" not in options:
                 continue
@@ -442,10 +469,10 @@ class DLsiteCatalog:
             japanese = self.works_table[workno].get("name")
             titles = {}
             for lang in missing:
-                url = f"https://www.dlsite.com/maniax/api/=/product.json?workno={workno}&locale={EDITION_LOCALES[lang]}"
+                source = self.works_table[workno].get("siteId") or product_site(workno)
+                url = title_url(workno, source, lang)
                 data = _request_json(url, workno, limiter)
-                title = data[0].get("work_name") if data else None
-                titles[lang] = title if title and title != japanese else None
+                titles[lang] = extract_title(data, japanese)
             return workno, titles
 
         def store(result: tuple[str, dict[str, str | None]]) -> None:
@@ -457,7 +484,7 @@ class DLsiteCatalog:
         )
 
     @staticmethod
-    def list_language_page(lang: str, page: int, limiter: RateLimiter | None = None) -> tuple[list[str], int]:
+    def list_language_page(lang: str, page: int, limiter: RateLimiter | None = None, source: str = "maniax") -> tuple[list[str], int]:
         """
         Get one page of the DLsite search results for works offered in `lang`, newest first.
         The results mix original works with their translated editions.
@@ -468,15 +495,15 @@ class DLsiteCatalog:
             The work IDs on the page and the total number of results.
         """
         url = (
-            "https://www.dlsite.com/maniax/fsr/ajax/=/language/jp/order/release_d"
+            f"https://www.dlsite.com/{source}/fsr/ajax/=/language/jp/order/release_d"
             f"/options%5B0%5D/{lang}/options_and_or/and/per_page/{LISTING_PAGE_SIZE}/page/{page}/from/fs.header"
         )
         data = _request_json(url, f"{lang} listing page {page}", limiter)
-        ids = re.findall(r'data-list_item_product_id="(RJ\d+)"', data["search_result"])
+        ids = re.findall(r'data-list_item_product_id="((?:RJ|BJ|VJ)[0-9]+)"', data["search_result"])
         return list(dict.fromkeys(ids)), int(data["page_info"]["count"])
 
     @staticmethod
-    def get_translation_info(workno: str, lang: str = "ENG", limiter: RateLimiter | None = None) -> dict[str, Any]:
+    def get_translation_info(workno: str, lang: str = "ENG", limiter: RateLimiter | None = None, source: str | None = None) -> dict[str, Any]:
         """
         Look up `workno` on DLsite and describe it as a translated edition.
 
@@ -493,7 +520,8 @@ class DLsiteCatalog:
             and the edition's own title, circle, release date, options and site.
             Otherwise (original work, other language, unavailable): `{"lang": None}`.
         """
-        url = f"https://www.dlsite.com/maniax/api/=/product.json?workno={workno}&locale={EDITION_LOCALES[lang]}"
+        source = source or product_site(workno)
+        url = title_url(workno, source, lang)
         data = _request_json(url, workno, limiter)
         now = datetime.today().strftime("%Y-%m-%d %H:%M:%S")
         if not data:
@@ -505,7 +533,7 @@ class DLsiteCatalog:
         if actual not in TRANSLATION_LANGS or not original or original == workno:
             return {"lang": None, "fetchedAt": now}
         if actual != lang:
-            return DLsiteCatalog.get_translation_info(workno, actual, limiter)
+            return DLsiteCatalog.get_translation_info(workno, actual, limiter, source)
 
         editions = {e["workno"]: e.get("lang") for e in product.get("language_editions") or []}
         return {
@@ -556,29 +584,29 @@ class DLsiteCatalog:
         listing_limiter = RateLimiter(min(rate or DEFAULT_RATE, LISTING_RATE))
 
         # First collect the unknown IDs, newest first, so that a limit keeps the newest editions.
-        unknown: dict[str, str] = {}
-        for lang in langs:
-            ids, total = self.list_language_page(lang, 1, listing_limiter)
-            pages = {1: ids}
-            run_parallel(
-                range(2, -(-total // LISTING_PAGE_SIZE) + 1),
-                lambda page: (page, self.list_language_page(lang, page, listing_limiter)[0]),
-                lambda result: pages.__setitem__(*result),
-                workers,
-                f"Listing {lang}",
-                unit="page",
-            )
-            for page in sorted(pages):
-                for workno in pages[page]:
-                    if workno not in self.works_table and workno not in self.translation_table:
-                        unknown.setdefault(workno, lang)
+        unknown: dict[str, tuple[str, str]] = {}
+        for source in self.sources:
+            def listing(lang, page):
+                if source == "maniax":
+                    return self.list_language_page(lang, page, listing_limiter)
+                return self.list_language_page(lang, page, listing_limiter, source)
+            for lang in langs:
+                ids, total = listing(lang, 1)
+                pages = {1: ids}
+                run_parallel(range(2, -(-total // LISTING_PAGE_SIZE) + 1),
+                             lambda page: (page, listing(lang, page)[0]),
+                             lambda result: pages.__setitem__(*result), workers, f"Listing {source} {lang}", unit="page")
+                for page in sorted(pages):
+                    for workno in pages[page]:
+                        if workno not in self.works_table and workno not in self.translation_table:
+                            unknown.setdefault(workno, (lang, source))
 
         def store(result: tuple[str, dict[str, Any]]) -> None:
             self.translation_table[result[0]] = result[1]
 
         return run_parallel(
             unknown.items(),
-            lambda task: (task[0], self.get_translation_info(task[0], task[1], limiter)),
+            lambda task: (task[0], self.get_translation_info(task[0], task[1][0], limiter) if task[1][1] == "maniax" else self.get_translation_info(task[0], task[1][0], limiter, task[1][1])),
             store,
             workers,
             "Editions",
@@ -602,7 +630,7 @@ class DLsiteCatalog:
         # If there is only one date, print it and return
         if len(dates) < 2:
             print(dates)
-            return dates[0]
+            return dates[0] if dates else None
 
         # If there are more than one date, print the dates that are not consecutive
         previous_date = dates[0]
@@ -633,7 +661,7 @@ class DLsiteCatalog:
         return pd.DataFrame.from_dict(self.works_table).T
 
     @staticmethod
-    def get_outline(date: str) -> list[dict[str, Any]]:
+    def get_outline(date: str, source: str = "maniax") -> list[dict[str, Any]]:
         """
         Get the work data of `date`.
         Usage example: DLsite_catalog.getOutline("2021-09-01")
@@ -648,7 +676,8 @@ class DLsiteCatalog:
         list
             A list of dictionaries containing the work data of `date`.
         """
-        response = requests.get(f"https://www.dlsite.com/maniax/new/work/api?date={date}", timeout=REQUEST_TIMEOUT)
+        response = requests.get(f"https://www.dlsite.com/{source}/new/work/api?date={date}", timeout=REQUEST_TIMEOUT)
+        response.raise_for_status()
         data = response.json()
 
         if data["meta"]["code"] != 200:
@@ -885,6 +914,8 @@ class GenreCatalog:
 
         with open(os.path.join(path, "genre_vec.pkl"), "wb") as f:
             pickle.dump(self.genre_embedding, f)
+        from module.export_vectors import export_vectors
+        export_vectors(self.genre_embedding, path)
 
     def get_weighting(self, weight_func: str = "r_logistic") -> dict[str, np.ndarray]:
         """
@@ -933,10 +964,9 @@ class GenreCatalog:
                 if genre_id in base:
                     try:
                         base[genre_id]["count"] += genre["count"]
-                        # update the genre name if the new one is longer
-                        if "ja_JP" in genre["name"] and len(genre["name"]) > len(base[genre_id]["name"]):
-                            base[genre_id]["name"] = genre["name"]
-                            base[genre_id]["category"] = genre["category"]
+                        for field in ("name", "category"):
+                            for locale, label in genre[field].items():
+                                base[genre_id][field].setdefault(locale, label)
                     except KeyError:
                         print(f"Warning: {genre_id} has no count information.")
                 else:

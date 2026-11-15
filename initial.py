@@ -5,6 +5,8 @@ import argparse
 import pandas as pd
 from datetime import datetime, timedelta
 from module import config
+from module.products import SOURCES, product_site
+from module.catalogue_store import CHECKPOINT_FILE
 from module.database import add_localized_titles, add_translation_editions, export_works
 from module.dlsite import (
     DEFAULT_RATE,
@@ -73,6 +75,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-s", "--skip", action="store_true", help="Skip every confirmation and question, using the defaults.")
     parser.add_argument("--path", default=str(config.DATA_DIR), help="The path of database.")
+    parser.add_argument("--sources", nargs="+", choices=SOURCES, default=list(SOURCES), help="Catalogue sources to collect or update.")
     parser.add_argument(
         "--workers", type=int, default=DEFAULT_WORKERS, help="Number of parallel requests when fetching translations."
     )
@@ -250,7 +253,7 @@ def needs_rebuild(path: str) -> bool:
     if not os.path.exists(database):
         return True
     built = os.path.getmtime(database)
-    sources = ("works_table.json", "translation_table.json", "title_table.json")
+    sources = ("works_table.json", "translation_table.json", "title_table.json", CHECKPOINT_FILE)
     return any(os.path.getmtime(os.path.join(path, s)) > built for s in sources if os.path.exists(os.path.join(path, s)))
 
 
@@ -305,11 +308,18 @@ def update_genres(args: argparse.Namespace) -> None:
     # will override the genre catalogue if not init
     print("Downloading genre catalogues...")
     GG = GenreCatalog(target="maniax")
-    GH = GenreCatalog(target="home")
-    GL = GenreCatalog(target="girls-pro")
-
-    # concat and save
-    GG.genre_catalogue = GenreCatalog.concat_genre(GG.genre_catalogue, [GH.genre_catalogue, GL.genre_catalogue])
+    for source in dict.fromkeys(("home", "girls-pro", *SOURCES)):
+        if source == "maniax":
+            continue
+        extra = GenreCatalog(target=source)
+        GG.genre_catalogue = GenreCatalog.concat_genre(GG.genre_catalogue, [extra.genre_catalogue])
+        for key, value in extra.workformat.items():
+            if key not in GG.workformat:
+                GG.workformat[key] = value
+            else:
+                for field in ("name", "category"):
+                    for locale, label in value[field].items():
+                        GG.workformat[key][field].setdefault(locale, label)
 
     print("Loading language model... it may take time to download if this is the first time you run.")
     GG.get_embedding(model_name=args.model, path=args.path)
@@ -331,10 +341,11 @@ def init_crawl(DL: DLsiteCatalog, path: str) -> None:
         else:
             break
 
-    if d2 == "":
-        DL.get_data_one_day(d1)
-    else:
-        DL.get_data_duration(d1, d2)
+    for source in DL.sources:
+        if d2 == "":
+            DL.get_data_one_day(d1, source)
+        else:
+            DL.get_data_duration(d1, d2, source)
     DL.save_tables(path)
     print(f"Save work catalogue in {path}.")
 
@@ -392,78 +403,61 @@ def main(argv: list[str] | None = None) -> None:
         return
     if args.date is not None and not check_dates(args):
         return
-
-    # Find for the catalogue
-    if os.path.isfile(os.path.join(args.path, "works_table.json")):
-        DL = DLsiteCatalog(path=args.path)
-        print(f"Loaded catalogue in {args.path}.")
-        print("Dates recorded in the catalogue: ")
-        DL.print_date()
-        print(f"{len(DL.works_table)} works over {len(DL.dates_table)} days.")
-        # If no update is required, exit
-        if args.check or args.init:
-            return
-    else:
-        print(f"No catalogue found in {args.path}.")
-        # If no update is required, exit
-        if args.check or args.update:
-            return
-        if not confirm(args, f"Create a new one at {args.path}?"):
-            return
-        DL = DLsiteCatalog()
-
+    exists = any(os.path.isfile(os.path.join(args.path, name)) for name in ("works_table.json", CHECKPOINT_FILE))
+    if not exists and (args.check or args.update):
+        print(f"No raw catalogue found in {args.path}. Use -i or -d START END to collect it.")
+        return
+    if not exists and not confirm(args, f"Create a new catalogue at {args.path}?"):
+        return
+    os.makedirs(args.path, exist_ok=True)
+    DL = DLsiteCatalog(path=args.path)
+    DL.sources = tuple(dict.fromkeys(args.sources))
+    DL.checkpoint_dir = args.path
+    if args.check or (args.init and exists):
+        for source in DL.sources:
+            days = DL.source_dates.get(source, {})
+            print(f"{source}: {min(days)} to {max(days)} ({len(days)} days)" if days else f"{source}: not collected")
+        return
     crawled = False
     if args.init:
         init_crawl(DL, args.path)
         crawled = True
     else:
-        if args.update:
-            print("[Mode] UPDATE")
-            last = DL.print_date()
-            span = update_span(last, datetime.today())
-        else:
-            print("[Mode] DATE")
-            span = (args.date[0], args.date[1] if len(args.date) == 2 else None)
-
         languages = args.languages if args.languages is not None else ask_languages(args)
-        if not span and not languages:
-            print("The originals are up to date.")
-            if not args.raw_only and needs_rebuild(args.path):
-                print("works.sqlite is older than the saved tables.")
-                rebuild_database(DL, args.path)
-            return
-
-        if args.update or languages:
+        spans = {}
+        for source in DL.sources:
+            if args.update:
+                days = DL.source_dates.get(source, {})
+                if not days:
+                    print(f"{source}: not collected. Backfill explicitly with -d YYYY-MM-DD YYYY-MM-DD --sources {source}.")
+                    continue
+                span = update_span(datetime.strptime(max(days), "%Y-%m-%d"), datetime.today())
+            else:
+                span = (args.date[0], args.date[1] if len(args.date) == 2 else None)
             if span:
-                print(f"Originals: {span[0]}" + (f" to {span[1]}" if span[1] else "") + ".")
+                spans[source] = span
+        if args.update or languages:
+            for source, span in spans.items():
+                print(f"{source}: {span[0]}" + (f" to {span[1]}" if span[1] else ""))
             if languages:
                 print("\n".join(describe_translations(DL, args, languages)))
-            if not confirm(args, "Continue?"):
-                print("Abort.")
+            if (spans or languages) and not confirm(args, "Continue?"):
                 return
-
-        if span:
-            if span[1] is None:
-                DL.get_data_one_day(span[0])
+        for source, (first, last) in spans.items():
+            if last:
+                DL.get_data_duration(first, last, source)
             else:
-                DL.get_data_duration(span[0], span[1])
-            DL.save_tables(args.path)
-            print(f"Save work catalogue in {args.path}.")
+                DL.get_data_one_day(first, source)
             crawled = True
-
+        if crawled:
+            DL.save_tables(args.path)
         if languages:
-            print("[Mode] TRANSLATIONS")
             try:
-                made = fetch_translations(DL, args, languages)
+                fetch_translations(DL, args, languages)
             except KeyboardInterrupt:
                 stop_after_partial_run(DL, args, "Interrupted. Progress is saved.", 130)
             except RuntimeError as e:
-                stop_after_partial_run(
-                    DL, args, f"{e}\nProgress is saved. If DLsite answered 403 or 429, wait a while and lower --rate.", 1
-                )
-            editions = sum(1 for i in DL.translation_table.values() if i.get("lang"))
-            print(f"Looked up {made} works; {len(DL.title_table)} works with titles and {editions} editions recorded.")
-
+                stop_after_partial_run(DL, args, str(e), 1)
     if crawled and (args.init or not args.no_genre):
         update_genres(args)
     if args.init or (not args.raw_only and (crawled or needs_rebuild(args.path))):
@@ -475,75 +469,40 @@ def rebuild_database(DL: DLsiteCatalog, path: str) -> None:
     print("Processing dataframes...")
     GG = GenreCatalog(target="", path=path)
     genre_set = set(GG.genre_catalogue.keys())
-    df = DL._to_dataframe()
-
-    # remove useless columns
-    keys_to_del = [
-        "rank",
-        "id",
-        "url",
-        "category",
-        "dlFormat",
-        "img",
-        "officialPrice",
-        "localePrice",
-        "localeOfficialPrice",
-        "discountPercentage",
-        "point",
-        "pointEndDate",
-        "reductionRate",
-        "isFree",
-        "freeEndDate",
-        "freeOnly",
-        "campaignEndDate",
-        "isLimitWork",
-        "isLimitSales",
-        "isLimitInStock",
-        "isTimesale",
-        "limitEndDate",
-        "salesPercentage",
-        "onSale",
-        "coupling",
-        "gift",
-        "showDownload",
-        "isShowRate",
-        "review",
-        "isAna",
-        "favUrl",
-        "cartUrl",
-        "authors",
-        "icons",
-        "isSmartphoneOnlyIcon",
-        "salesDate",
-        "touchStyle1",
-        "pcGameImgUrls",
-        "voiceBys",
-        "announceComment",
-        "isReserveWork",
-    ]
-    df = df.drop(keys_to_del, axis=1)
-    df = df.dropna(subset=["tags"])
-
-    df["tags"] = [[str(j["id"]).zfill(3) for j in i if str(j["id"]).zfill(3) in genre_set] for i in df["tags"]]
-    df = df[df["tags"].map(len) > 0]
-
-    df["tags"] = "#" + df["tags"].str.join("#") + "#"
-    df["options"] = "#" + df["options"].str.join("#") + "#"
-    df["makerId"] = df["maker"].apply(lambda x: x["id"])
-    df["maker"] = df["maker"].apply(lambda x: x["name"])
-    df["rateCount"] = df["rate"].apply(lambda x: x["count"])
-    df["rate"] = df["rate"].apply(lambda x: x["averageStar"])
-    df["type"] = df["type"].apply(lambda x: x["id"])
-
-    df["dlCount"] = df["dlCount"].astype(int)
-    df["registDate"] = pd.to_datetime(df["registDate"], unit="s")
-    df["ageCategory"] = df["ageCategory"].astype(int)
-    df["sexCategory"] = df["sexCategory"].astype(int)
-    df["inservice"] = df["inservice"].astype(int)
-    df["price"] = df["price"].astype(int)
-    df["rate"] = df["rate"].astype(int)
-    df["rateCount"] = df["rateCount"].astype(int)
-    df["reviewCount"] = df["reviewCount"].astype(int)
+    rows = []
+    for workno, work in DL.works_table.items():
+        maker = work.get("maker") or {}
+        rating = work.get("rate") or {}
+        format_ = work.get("type") or {}
+        image = work.get("img") or {}
+        def number(key, default=0):
+            try:
+                return int(work.get(key) or default)
+            except (ValueError, TypeError):
+                return default
+        tags = list(dict.fromkeys(str(tag.get("id", "")).zfill(3) for tag in (work.get("tags") or []) if isinstance(tag, dict)))
+        tags = [tag for tag in tags if tag in genre_set]
+        date = work.get("registDate")
+        date = pd.to_datetime(date, unit="s", errors="coerce") if isinstance(date, (int, float)) else pd.to_datetime(date, errors="coerce")
+        url = image.get("resizeUrl") or image.get("originalUrl") if isinstance(image, dict) else None
+        if url and url.startswith("//"):
+            url = "https:" + url
+        options = work.get("options") or []
+        if isinstance(options, str):
+            options = [x for x in options.split("#") if x]
+        rows.append(dict(index=workno, name=work.get("name") or workno, description=work.get("description") or "",
+                         maker=maker.get("name", "") if isinstance(maker, dict) else str(maker),
+                         makerId=maker.get("id") if isinstance(maker, dict) else None,
+                         type=format_.get("id", "OTH") if isinstance(format_, dict) else str(format_),
+                         siteId=work.get("siteId") or product_site(workno), ageCategory=number("ageCategory", 3),
+                         sexCategory=number("sexCategory"), inservice=number("inservice"), price=number("price"),
+                         dlCount=number("dlCount"), rate=int(rating.get("averageStar") or 0) if isinstance(rating, dict) else 0,
+                         rateCount=int(rating.get("count") or 0) if isinstance(rating, dict) else 0,
+                         reviewCount=number("reviewCount"), registDate=date, tags="#" + "#".join(tags) + "#",
+                         options="#" + "#".join(options) + "#", imageUrl=url))
+    if not rows:
+        raise ValueError("No works to export; existing database is unchanged.")
+    df = pd.DataFrame(rows).set_index("index")
 
     df = add_localized_titles(df, DL.title_table)
     df = add_translation_editions(df, DL.translation_table)

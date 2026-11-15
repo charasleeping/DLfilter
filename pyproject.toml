@@ -5,20 +5,17 @@ description = "Tag-semantic search engine for DLsite works."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = [
-    "fastapi>=0.115",
-    "uvicorn>=0.30",
-    "jinja2>=3.1",
+dependencies = ["requests>=2.32"]
+
+[project.optional-dependencies]
+# One-time trusted legacy vector conversion; not needed by the native server.
+convert = ["numpy>=1.26"]
+# Only needed by initial.py for crawling DLsite and computing genre embeddings.
+update = [
     "numpy>=1.26",
     "scipy>=1.13",
     "pandas>=2.2",
-    "requests>=2.32",
     "torch>=2.6",
-]
-
-[project.optional-dependencies]
-# Only needed by initial.py for crawling DLsite and computing genre embeddings.
-update = [
     "beautifulsoup4>=4.12",
     "tqdm>=4.66",
     "sentence-transformers>=3.0",
@@ -31,6 +28,9 @@ update = [
 
 [dependency-groups]
 dev = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
     "pytest>=8",
     "httpx2",
 ]
@@ -38,7 +38,7 @@ dev = [
 [tool.uv]
 package = false
 
-# The app only runs torch on CPU; this avoids the multi-GB CUDA wheels on Linux.
+# Maintenance uses the CPU-only PyTorch build on Linux.
 [[tool.uv.index]]
 name = "pytorch-cpu"
 url = "https://download.pytorch.org/whl/cpu"

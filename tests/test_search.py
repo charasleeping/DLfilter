@@ -3,8 +3,8 @@ import sqlite3
 import pytest
 
 from conftest import work as make_work, write_works_db
-from module import search as search_module
-from module.search import EDITION_COLUMNS, RESULT_COLUMNS
+from reference import search as search_module
+from reference.search import EDITION_COLUMNS, RESULT_COLUMNS
 
 
 def search(client, **params):
@@ -139,7 +139,7 @@ def test_response_shape_and_formatting(client):
         "total": 1,
     }
     work = data["results"][0]
-    assert set(work) == set(RESULT_COLUMNS) | set(EDITION_COLUMNS) | {"titleToggle"}
+    assert set(work) == set(RESULT_COLUMNS) | set(EDITION_COLUMNS) | {"titleToggle", "imageUrl"}
     assert work["titleToggle"] is False and work["lang"] is None
     assert work["name"] == "Under_score Story"
     assert work["tags"] == ["002"]
@@ -150,15 +150,12 @@ def test_response_shape_and_formatting(client):
 @pytest.mark.parametrize(
     ("params", "code"),
     [
-        ({"q": ""}, "empty_query"),
-        ({"q": "   "}, "empty_query"),
-        ({"q": "　"}, "empty_query"),
         ({"q": "a" * 101}, "query_too_long"),
         ({"q": "magic", "field": "description"}, "invalid_field"),
         ({"q": "magic", "ages": "11"}, "invalid_ages"),
         ({"q": "magic", "ages": "12a"}, "invalid_ages"),
         ({"q": "magic", "page": 0}, "invalid_page"),
-        ({"q": "magic", "page": 10_001}, "invalid_page"),
+        ({"q": "magic", "page": search_module.MAX_PAGE + 1}, "invalid_page"),
         ({"q": "magic", "page_size": 0}, "invalid_page_size"),
         ({"q": "magic", "page_size": 49}, "invalid_page_size"),
     ],
@@ -174,7 +171,7 @@ def test_query_at_length_limit_is_accepted(client):
 
 
 def test_database_error_is_generic(client, monkeypatch, tmp_path):
-    import app
+    from reference import python_app as app
 
     monkeypatch.setattr(app, "database_path", tmp_path / "missing.sqlite")
     response = search(client, q="magic")

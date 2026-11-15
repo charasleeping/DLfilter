@@ -49,6 +49,9 @@ html {
     min-height: 8rem;
     overflow-y: auto;
     overflow-x: hidden;
+    /* Leave room inside the scrollport for the expanded section highlights. */
+    margin: -8px -12px;
+    padding: 8px 12px;
 }
 
 #search-panel .form-text,
@@ -220,7 +223,7 @@ html {
 /* the current language; pressing slides in the next one */
 .lang-glyph {
     font-size: 1.35rem;
-    font-weight: 600;
+    font-weight: 400;
     line-height: 1;
 }
 
@@ -597,10 +600,8 @@ input.hint-highlight {
     }
 }
 
-#genre-add-container a:nth-child(n+11),
 #genre-excluded-container a:nth-child(n+6),
 #genre-included-container a:nth-child(n+6),
-#selected-genre-container[data-genre-action="add"] a:nth-child(n+11),
 #selected-genre-container[data-genre-action="included"] a:nth-child(n+6),
 #selected-genre-container[data-genre-action="excluded"] a:nth-child(n+6),
 .genre-unavailable {
@@ -645,4 +646,37 @@ input.hint-highlight {
     bottom: calc(1.5rem);
     right: 2rem;
     z-index: 1000;
+}
+.copy-tags-popover { --bs-popover-max-width: min(360px, calc(100vw - 24px)); }
+.copy-tags-popover .popover-body { min-width: min(300px, calc(100vw - 48px)); }
+#genre-included-container button:nth-child(n+6),
+#genre-excluded-container button:nth-child(n+6) { text-decoration: line-through; opacity: .55; }
+#copy-tags-btn:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 2px; }
+#catalog-query { min-width: 0; }
+
+.lang-initializing .lang-strip-glyph { transition: none; }
+#dark-toggle { display: flex; align-items: center; justify-content: center; }
+.theme-icon { flex: 0 0 auto; }
+.welcome-hint-link { border: 0; padding: 0; background: transparent; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: .2em; cursor: pointer; border-radius: .15rem; transition: color .22s ease, background-color .22s ease; }
+.welcome-hint-link:hover, .welcome-hint-link:focus-visible { color: var(--bs-primary); background-color: rgba(var(--bs-primary-rgb), .12); }
+:where(#catalog-search-form, #genre-selection-section, #format-selection-section) {
+    position: relative;
+}
+:where(#catalog-search-form, #genre-selection-section, #format-selection-section)::before {
+    content: "";
+    position: absolute;
+    inset: -8px;
+    border: 2px solid var(--bs-primary);
+    border-radius: .5rem;
+    background-color: rgba(var(--bs-primary-rgb), .08);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .28s ease;
+}
+#genre-selection-section::before { inset-block: 0; left: -8px; right: 0; }
+/* Bootstrap's format row already extends sideways into the column gutters. */
+#format-selection-section::before { left: 4px; right: 12px; bottom: 0; }
+.welcome-section-highlight::before { opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+    .welcome-hint-link, #catalog-search-form::before, #genre-selection-section::before, #format-selection-section::before { transition: none; }
 }

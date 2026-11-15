@@ -24,7 +24,7 @@ from module import config
 # A GitHub release tagged "database" holds this asset, so it does not depend on the code releases.
 DEFAULT_URL = "https://github.com/charasleeping/DLfilter/releases/download/database/works-db.zip"
 REQUIRED_FILES = ("works.sqlite", "genre_table.json", "workformat.json", "genre_vec.pkl")
-OPTIONAL_FILES = ("dates_table.json", "works_table.json")
+OPTIONAL_FILES = ("dates_table.json", "works_table.json", "title_table.json", "translation_table.json", "source_dates_table.json", "catalogue_updates.sqlite", "genre_vectors.json", "genre_vectors.f32")
 
 
 def is_installed(data_dir: Path) -> bool:

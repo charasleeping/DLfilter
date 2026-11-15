@@ -1,1055 +1,372 @@
-const search_genres = {
-    add: new Set(),
-    included: new Set(),
-    excluded: new Set()
-};
+/* One state and one request path for keyword, browse and similarity discovery. */
+const search_genres = { add: new Set(), included: new Set(), excluded: new Set() };
 const search_categories = new Set();
-const genre_class = {
-    add: "text-primary-emphasis bg-primary-subtle border border-primary-subtle",
-    included: "text-success-emphasis bg-success-subtle border border-success-subtle",
-    excluded: "text-danger-emphasis bg-danger-subtle border border-danger-subtle"
-};
-const work_format_class = {
-    "Game": "primary",
-    "Manga": "success",
-    "CG + Illustrations": "info",
-    "Novel": "light",
-    "Video": "primary",
-    "Voice / ASMR": "warning",
-    "Music": "warning",
-    "Tools / Accessories": "light",
-    "Miscellaneous": "light"
-}
-
-const version = "2.0";
-// slider position -> server weight function: lower popular genres, none, lower unpopular genres
-const popularity_weight_func = [1, 4, 2];
-const SUN_ICON = `<svg class="sun-icon" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>`;
-const rjid_regex = /^RJ(?:\d{8}|\d{6})$/;
+const genre_class = { add: "text-primary-emphasis bg-primary-subtle border", included: "text-success-emphasis bg-success-subtle border", excluded: "text-danger-emphasis bg-danger-subtle border" };
+const work_format_class = { Game: "primary", Manga: "success", "CG + Illustrations": "info", Novel: "light", Video: "primary", "Voice / ASMR": "warning", Music: "warning", "Tools / Accessories": "light", Miscellaneous: "light" };
+const rjid_regex = /^(?:RJ|BJ|VJ)(?:[0-9]{8}|[0-9]{6})$/;
+const normalizeProductId = value => String(value || "").normalize("NFKC").trim().toUpperCase();
 const page_size = 48;
-
+const version = "2.1";
+const popularity_weight_func = [1, 4, 2];
 const startDate = new Date(2000, 0, 1);
 const currentDate = new Date();
-const months_from_start = (currentDate.getFullYear() - startDate.getFullYear()) * 12 + currentDate.getMonth() - startDate.getMonth();
-
-var locale_data = null;
-var current_page = 1;
-
-// use the language chosen with the language button, otherwise the language of the browser
-var lang_raw = navigator.language || navigator.userLanguage;
-// lang_raw = "ja-JP";
-var lang = lang_raw.replace("-", "_");
-if (supported_lang.indexOf(lang) == -1) {
-    lang = "en_US";
+const months_from_start = (currentDate.getFullYear() - 2000) * 12 + currentDate.getMonth();
+const SETTINGS_KEY = "dlfilter.search.v1";
+function readSettings() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY));
+        return saved && saved.version === 1 && saved.settings && typeof saved.settings === "object" ? saved : null;
+    } catch (_) { return null; }
 }
-try {
-    const saved_lang = localStorage.getItem("lang");
-    if (supported_lang.indexOf(saved_lang) != -1) {
-        lang = saved_lang;
-        lang_raw = saved_lang.replace("_", "-");
-    }
-} catch (e) { }
-document.documentElement.lang = lang.replace("_", "-");
-var info_data = null;
+const saved_settings = readSettings();
+var lang_raw = navigator.language || "en-US";
+var lang = lang_raw.replace("-", "_");
+try { lang = saved_settings?.language || localStorage.getItem("lang") || lang; } catch (_) { }
+if (!supported_lang.includes(lang)) lang = "en_US";
+lang_raw = lang.replace("_", "-");
+var locale_data = null;
 
 $(document).ready(function () {
-    // initialize the collapses
-    var collapse_genres_container = new bootstrap.Collapse($("#collapse-genres-container"), {
-        toggle: false
+    let ready = false, restoring = false, request_id = 0, copy_id = 0, locale_id = 0;
+    let reference_id = "", reference_name = "", view = null, query_snapshot = null, random_view = false;
+    let last_preset_name = "", copy_open = false, return_copy_focus = false;
+    var catalog_title_key = "catalog_results_title";
+    const collapse_welcome_banner = bootstrap.Collapse.getOrCreateInstance("#welcome-banner", { toggle: false });
+    const copy_content = document.getElementById("copy-tags-content");
+    const popover = new bootstrap.Popover(document.getElementById("copy-tags-btn"), {
+        trigger: "manual", html: true, sanitize: false, placement: "right", fallbackPlacements: ["bottom", "left", "top"],
+        content: () => copy_content, customClass: "copy-tags-popover", container: "body",
     });
-    var collapse_welcome_banner = new bootstrap.Collapse($("#welcome-banner"), {
-        toggle: false
-    });
-    var collapse_result_card_container = new bootstrap.Collapse($("#result-card-container"), {
-        toggle: false
-    });
-
-    // initialize the localisation
-    setLocaleText(lang);
-    $.getJSON("/api/locale/" + lang, data => {
-        if (data["state"] == "success") {
-            locale_data = data["locale"];
-            setGenreLocale(locale_data);
-            setWorkFormatLocale(locale_data);
-        } else {
-            console.log("Failed to get locale data");
+    function t(key) { return localisation[key]?.[lang] || key; }
+    function showSearchTab() { document.getElementById("search-panel").scrollIntoView({ block: "start", behavior: "smooth" }); }
+    function updateCatalogAgeSummary() { }
+    function showLanguageGlyph() {
+        const button = $("#lang-toggle");
+        const initial = !button.children().length;
+        if (initial) {
+            button.addClass("lang-initializing").append(language_cycle.map(code => $("<span>", {
+                class: "lang-glyph lang-strip-glyph", "aria-hidden": "true"
+            }).text(language_glyphs[code])));
         }
-    });
-    $.getJSON("/api/info", data => {
-        info_data = data;
-        showInfo();
-    });
-
-    // go to top button
-    $("#go-top-btn").click(function () {
-        $("#result-panel").animate({
-            scrollTop: 0
-        }, 500);
-    });
-
-    // search panel tabs: "keyword" (local catalogue search) or "similar" (similarity search)
-    function showSearchTab(tab) {
-        bootstrap.Tab.getOrCreateInstance(document.getElementById(`${tab}-tab`)).show();
-    }
-
-    // set up interaction for start text: hovering a term highlights where to type it
-    // (and its tab when that tab is not open); clicking opens the tab
-    const hint_targets = {
-        "welcome-start-hint-keywords": { tab: "keyword", target: "#catalog-query" },
-        "welcome-start-hint-genres": { tab: "similar", target: "#genre-title, #genre-title-icon" },
-        "welcome-start-hint-workid": { tab: "similar", target: "#rjid" },
-    };
-    $("#welcome-start-hint").on("mouseenter mouseleave", "span[id^=welcome-start-hint-]", function (event) {
-        const hint = hint_targets[this.id];
-        const on = event.type == "mouseenter";
-        $(hint.target).toggleClass("hint-highlight", on);
-        $(`#${hint.tab}-tab`).toggleClass("hint-highlight", on && !$(`#${hint.tab}-tab`).hasClass("active"));
-    }).on("click", "span[id^=welcome-start-hint-]", function () {
-        const hint = hint_targets[this.id];
-        $(`#${hint.tab}-tab`).removeClass("hint-highlight");
-        showSearchTab(hint.tab);
-        if (this.id == "welcome-start-hint-keywords") {
-            $("#catalog-query").focus();
-        } else if (this.id == "welcome-start-hint-workid") {
-            $("#rjid").focus();
-        }
-    });
-
-    // set up the range slider
-    setDateRangeText($("#date-range").val());
-    $("#date-range").on("input", function () {
-        setDateRangeText($(this).val());
-    });
-
-    $("#date-reset-btn").click(function () {
-        $("#date-range").val(5);
-        setDateRangeText(5);
-    });
-    $("#dlcount-reset-btn").click(function () {
-        $("#dlcount-range").val(50);
-    });
-    $("#popularity-weight-reset-btn").click(function () {
-        $("#popularity-weight-range").val(1);
-    });
-
-    // each advanced slider only applies while its switch is on
-    $(".advanced-option .form-switch input").on("change", function () {
-        const option = $(this).closest(".advanced-option");
-        option.toggleClass("is-off", !this.checked);
-        option.find("input[type=range]").prop("disabled", !this.checked);
-        option.find(".btn-add").toggleClass("disabled", !this.checked).attr("aria-disabled", !this.checked);
-    });
-
-    // set up the genre when it is clicked
-    $("#genre-container").on("change", ".genre-item input[type=checkbox]", function () {
-        var genre_id = $(this).val();
-        var genre_type = $('#selected-genre-container').attr('data-genre-action');
-        if (this.checked) {
-            addGenre(genre_type, genre_id);
-        } else {
-            removeGenre(genre_type, genre_id);
-        }
-    });
-    // set up the work format when it is clicked
-    $("#categories-container").on("change", ".col-12 input[type=checkbox]", function () {
-        var workformat_id = $(this).val();
-        if (this.checked) {
-            addWorkFormat(workformat_id);
-        } else {
-            removeWorkFormat(workformat_id);
-        }
-    });
-
-    // initialize the genre select modal for each genre type (add, included, excluded)
-    $('#genre-modal').on('show.bs.modal', function (event) {
-        var button = $(event.relatedTarget);
-        var genre_type = button.data('genre-action');
-
-        $("#category-link-nav a").removeClass("text-success-emphasis text-danger-emphasis");
-        $("#genre-search-bar").removeClass("focus-ring-success focus-ring-danger");
-
-        // unchecked all the checkbox
-        $("#genre-container input[type=checkbox]").prop("checked", false).removeClass("focus-ring-success focus-ring-danger");
-        $('#selected-genre-container').attr('data-genre-action', genre_type);
-        $("#genre-container").attr("data-genre-action", genre_type);
-
-        // clear the selected genre container
-        $("#selected-genre-container").empty();
-
-        // add the selected genre to the selected genre container
-        search_genres[genre_type].forEach(genre_id => {
-            $(`#genre-${genre_id}`).prop("checked", true);
-            $("#selected-genre-container").append(
-                $("<a>", {
-                    "class": `btn me-1 ${genre_class[genre_type]} rounded-pill btn-genre`,
-                    "role": "button",
-                    "data-genre-value": genre_id
-                }).html(`${locale_data["genres"][genre_id]["name"]} <i class="fa-solid fa-xmark"></i>`)
-            );
+        const current = language_cycle.indexOf(lang), count = language_cycle.length;
+        button.children().each(function (index) {
+            this.style.setProperty("--offset", ((index - current + 1 + count) % count) - 1);
+            this.classList.toggle("active", index === current);
         });
-
-        // change the modal title and description
-        var hint = `<br><span id='selected-genre-container-hint' class='text-muted small'>${localisation.not_selected[lang]}</span>`;
-        switch (genre_type) {
-            case "add":
-                $("#genre-modal-title").html(`<i class="fa-solid fa-tags"></i> ${localisation.search_genres_modal_title[lang]}`);
-                $("#modal-desc").html(`${localisation.selected_search_genres_desp[lang]} (<span id="selected-genre-size">${search_genres[genre_type].size}</span>)${hint}`);
-
-                break;
-            case "included":
-                $("#genre-modal-title").html(`<i class="fa-solid fa-filter"></i> ${localisation.included_genres_modal_title[lang]}`);
-                $("#modal-desc").html(`${localisation.selected_included_genres_desp[lang]} (<span id="selected-genre-size">${search_genres[genre_type].size}</span>)${hint}`);
-
-                $("#category-link-nav a").addClass("text-success-emphasis")
-                $("#genre-search-bar").addClass("focus-ring-success");
-                $("#genre-container input[type=checkbox]").addClass("focus-ring-success");
-                break;
-            case "excluded":
-                $("#genre-modal-title").html(`<i class="fa-solid fa-filter-circle-xmark"></i> ${localisation.excluded_genres_modal_title[lang]}`);
-                $("#modal-desc").html(`${localisation.selected_excluded_genres_desp[lang]} (<span id="selected-genre-size">${search_genres[genre_type].size}</span>)${hint}`);
-
-                $("#category-link-nav a").addClass("text-danger-emphasis")
-                $("#genre-search-bar").addClass("focus-ring-danger");
-                $("#genre-container input[type=checkbox]").addClass("focus-ring-danger");
-                break;
-        }
-
-        if (search_genres[genre_type].size > 0) {
-            $("#selected-genre-container-hint").hide();
-        }
-    });
-
-    // toggle the light/dark mode
-    function applyTheme(theme) {
-        const isDark = theme == "dark";
-        const label = (isDark ? localisation.theme_to_light : localisation.theme_to_dark)[lang];
-        $("html").attr("data-bs-theme", theme);
-        $("#lang-toggle")
-            .toggleClass("btn-outline-light", isDark)
-            .toggleClass("btn-outline-dark", !isDark);
-        $("#dark-toggle")
-            .toggleClass("btn-outline-light", isDark)
-            .toggleClass("btn-outline-dark", !isDark)
-            .attr({ "aria-label": label, "title": label })
-            .html(isDark ? `<i class="fa-solid fa-moon"></i>` : SUN_ICON);
+        if (initial) requestAnimationFrame(() => requestAnimationFrame(() => button.removeClass("lang-initializing")));
     }
-
-    $("#dark-toggle").click(function () {
-        const next = $("html").attr("data-bs-theme") == "dark" ? "light" : "dark";
-        if (!document.startViewTransition) {
-            applyTheme(next);
-            return;
+    function renderWelcome() {
+        $(".welcome-section-highlight").removeClass("welcome-section-highlight");
+        const targets = { keywords: "catalog-search-form", genres: "genre-selection-section", formats: "format-selection-section" };
+        const template = localisation.welcome_links[lang];
+        const labels = localisation.welcome_link_labels[lang];
+        const container = $("#welcome-start-hint").empty();
+        template.split(/(\{keywords\}|\{genres\}|\{formats\})/).forEach(part => {
+            const key = part.slice(1, -1);
+            if (Object.hasOwn(targets, key)) container.append($("<button>", { type: "button", class: "welcome-hint-link", "data-section": targets[key], "data-term": key }).text(labels[key]));
+            else container.append(document.createTextNode(part));
+        });
+    }
+    function updateWelcomeHighlights() {
+        $(".welcome-section-highlight").removeClass("welcome-section-highlight");
+        $(".welcome-hint-link").each(function () {
+            if (this.matches(":hover") || this === document.activeElement) document.getElementById(this.dataset.section).classList.add("welcome-section-highlight");
+        });
+    }
+    $("#welcome-start-hint").on("mouseenter mouseleave focusin focusout", ".welcome-hint-link", () => requestAnimationFrame(updateWelcomeHighlights))
+        .on("click", ".welcome-hint-link", function () {
+            const target = this.dataset.term === "keywords" ? document.getElementById("catalog-query") : document.getElementById(this.dataset.term === "genres" ? "genre-title" : "workformat-title");
+            target.scrollIntoView({ block: "nearest", behavior: "smooth" }); target.focus({ preventScroll: true });
+        });
+    function showInfo() { $.getJSON("/api/info").done(d => { if (d.state === "success") { $("#banner-text").text(d.length); $("#navbar-time").text(d.time); } }); }
+    function applyTheme(theme) {
+        theme = theme === "dark" ? "dark" : "light";
+        document.documentElement.dataset.bsTheme = theme;
+        $("#dark-toggle").attr({ "aria-label": t(theme === "dark" ? "theme_to_light" : "theme_to_dark"), title: t(theme === "dark" ? "theme_to_light" : "theme_to_dark") })
+            .html(`<svg class="theme-icon" viewBox="0 0 24 24" width="1.6em" height="1.6em" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${theme === "dark" ? '<path d="M19.5 17.5A9 9 0 1 1 9.5 3.3C5 11 11 19 19.5 17.5Z"/>' : '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>'}</svg>`);
+        $("#dark-toggle, #lang-toggle").toggleClass("btn-outline-light", theme === "dark").toggleClass("btn-outline-dark", theme !== "dark");
+    }
+    function refreshLabels() {
+        setLocaleText(lang);
+        $("#search-title").html(`<i class="fa-solid fa-magnifying-glass"></i> ${localisation_words.search[lang]}`);
+        $("#catalog-hint").html(t("unified_hint"));
+        $("#catalog-query").attr("placeholder", t("product_search_placeholder"));
+        $("#catalog-field-id").text(t("product_id"));
+        $("#rjid").attr("placeholder", "RJ123456 / BJ01234567 / VJ01234567");
+        $("#copy-tags-btn").attr({ "aria-label": t("copy_tags"), title: t("copy_tags") });
+        $("#copy-tags-submit").text(t("copy_button"));
+        $("#rjid-title").text(t("copy_tags"));
+        $("#genre-add-container-hint, #workformat-add-container-hint").text(t("not_selected"));
+        $("#scoring-hint").text(t("scoring_hint"));
+        renderWelcome();
+        $("#reference-work").empty();
+        if (reference_id) $("#reference-work").append($("<span>").text(`${t("reference_work")}: ${reference_name || reference_id} `),
+            $("<button>", { type: "button", class: "btn btn-sm btn-link", id: "clear-reference", "aria-label": t("clear_reference") }).text("×"));
+        document.documentElement.lang = lang_raw;
+        setDateRangeText($("#date-range").val());
+        showInfo();
+    }
+    function invalidate() { request_id++; $("#catalog-spinner").addClass("d-none"); }
+    function persist() {
+        if (!ready || restoring) return;
+        try {
+            localStorage.setItem(SETTINGS_KEY, JSON.stringify({ version: 1, settings: currentPreset(), language: lang, theme: document.documentElement.dataset.bsTheme }));
+            localStorage.setItem("lang", lang);
+        } catch (_) { }
+    }
+    function changed() { invalidate(); persist(); }
+    function currentPreset() {
+        const slider = (name, id) => ({ enabled: $(`#${name}`).prop("checked"), value: Number($(`#${id}`).val()) });
+        return { q: $("#catalog-query").val(), field: $("#catalog-field").val(), rj_id: reference_id,
+            genres: [...search_genres.add], included_genres: [...search_genres.included], excluded_genres: [...search_genres.excluded], categories: [...search_categories],
+            popularity_weight: slider("popularity-weight-enabled", "popularity-weight-range"), release_date: slider("date-range-enabled", "date-range"),
+            download_count: slider("dlcount-range-enabled", "dlcount-range"), ages: [1, 2, 3].map(i => $(`#age-checkbox-${i}`).prop("checked")),
+            excluded_contents: [1, 2, 3, 4, 5].map(i => $(`#misc-checkbox-${i}`).prop("checked")), advanced_options_open: $("#advanced-options-panel").hasClass("show") };
+    }
+    const default_preset = currentPreset();
+    function renderSelections() {
+        for (const type of ["add", "included", "excluded"]) {
+            const container = $(`#genre-${type}-container`).empty();
+            search_genres[type].forEach(id => container.append($("<button>", { type: "button", class: `btn me-1 rounded-pill btn-genre ${genre_class[type]}`, "data-remove-genre": id, "data-type": type }).text(`${locale_data.genres[id].name} ×`)));
+            $(`#genre-${type}-container-hint`).toggle(search_genres[type].size === 0);
         }
-        // normal motion: the new theme spreads out from the button as a circle
-        // reduced motion: the CSS keeps the default cross-fade instead
+        $("#workformat-add-container").empty().append([...search_categories].map(id => $("<button>", { type: "button", class: "btn btn-genre rounded-pill bg-primary-subtle me-1", "data-remove-format": id }).text(`${locale_data.work_formats[id].name} ×`)));
+        $("#workformat-add-container-hint").toggle(search_categories.size === 0);
+        updateSliders();
+    }
+    function updateSliders() {
+        $(".advanced-option").each(function () {
+            const scoring = $(this).find("#popularity-weight-enabled, #dlcount-range-enabled").length > 0;
+            const unavailable = scoring && search_genres.add.size === 0;
+            const on = $(this).find("input[role=switch]").prop("checked");
+            $(this).find("input[role=switch]").prop("disabled", unavailable);
+            $(this).find("input[type=range]").prop("disabled", unavailable || !on);
+            $(this).toggleClass("is-off", unavailable || !on).find(".btn-add").toggleClass("disabled", unavailable || !on);
+        });
+        $("#scoring-hint").toggle(search_genres.add.size === 0);
+    }
+    function applyPreset(raw) {
+        const p = raw && typeof raw === "object" && !Array.isArray(raw) ? { ...default_preset, ...raw } : default_preset;
+        restoring = true;
+        copy_id++;
+        for (const [type, key] of [["add", "genres"], ["included", "included_genres"], ["excluded", "excluded_genres"]]) {
+            search_genres[type].clear();
+            if (Array.isArray(p[key])) p[key].map(String).filter(id => Object.hasOwn(locale_data.genres, id)).forEach(id => search_genres[type].add(id));
+        }
+        search_genres.excluded.forEach(id => search_genres.included.delete(id));
+        search_categories.clear();
+        if (Array.isArray(p.categories)) p.categories.map(String).filter(id => Object.hasOwn(locale_data.work_formats, id)).forEach(id => search_categories.add(id));
+        reference_id = rjid_regex.test(normalizeProductId(p.rj_id)) ? normalizeProductId(p.rj_id) : "";
+        reference_name = "";
+        $("#rjid").val(reference_id); $("#rjid-work-name").empty();
+        $("#catalog-query").val(typeof p.q === "string" ? p.q.slice(0, 100) : "");
+        $("#catalog-field").val(["all", "title", "artist", "id"].includes(p.field) ? p.field : "all");
+        for (const [key, enabled, range] of [["popularity_weight", "popularity-weight-enabled", "popularity-weight-range"], ["release_date", "date-range-enabled", "date-range"], ["download_count", "dlcount-range-enabled", "dlcount-range"]]) {
+            const option = p[key] || default_preset[key];
+            $(`#${enabled}`).prop("checked", option.enabled === true);
+            $(`#${range}`).val(Number.isFinite(Number(option.value)) ? Number(option.value) : default_preset[key].value);
+        }
+        for (const [key, count, prefix] of [["ages", 3, "age"], ["excluded_contents", 5, "misc"]]) {
+            const flags = Array.isArray(p[key]) && p[key].length === count ? p[key] : default_preset[key];
+            flags.forEach((on, i) => $(`#${prefix}-checkbox-${i + 1}`).prop("checked", on === true));
+        }
+        const panel = bootstrap.Collapse.getOrCreateInstance("#advanced-options-panel", { toggle: false });
+        p.advanced_options_open ? panel.show() : panel.hide();
+        renderSelections(); refreshLabels(); restoring = false; changed();
+    }
+    function requestParams() {
+        const p = currentPreset();
+        const params = { q: p.q.trim(), field: p.field, ages: p.ages.map(x => x ? "1" : "0").join(""), excluded_low_rate: p.excluded_contents[0] };
+        for (const key of ["genres", "included_genres", "excluded_genres", "categories"]) {
+            const ids = p[key].slice(0, key === "included_genres" || key === "excluded_genres" ? 5 : undefined);
+            if (ids.length) params[key] = ids.join("+");
+        }
+        params.excluded_options = ["AIG", "AIP", "GRO", "MEN"].filter((_, i) => p.excluded_contents[i + 1]).join("+");
+        if (reference_id) params.rj_id = reference_id;
+        if (p.release_date.enabled) {
+            const date = monthFunc(months_from_start, p.release_date.value);
+            params.since = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
+        }
+        params.weight_func = p.popularity_weight.enabled ? popularity_weight_func[p.popularity_weight.value] : 4;
+        params.dlcount = p.download_count.enabled ? p.download_count.value : 50;
+        return params;
+    }
+    function renderView() {
+        if (!view) return;
+        $("#catalog-card-container").empty().append(view.results.map(w => catalogCardTemplate(w, t("copy_tags"))));
+        $("#catalog-results-title").text(t(random_view ? "random_results_title" : "catalog_results_title"));
+        const total = random_view ? view.results.length : view.total;
+        $("#catalog-status").text(!total ? t("catalog_no_results") : random_view ? t("random_summary").replace("{count}", total) : t("catalog_summary").replace(/<[^>]*>/g, " ").replace("{total}", total).replace("{start}", view.results.length ? (view.page - 1) * page_size + 1 : 0).replace("{end}", Math.min(view.page * page_size, total)));
+        const pages = random_view ? 1 : Math.ceil(total / page_size), current = view.page || 1;
+        const container = $("#catalog-pagination").empty();
+        if (pages > 1) {
+            const add = (label, page, disabled, active = false) => container.append($("<li>", { class: `page-item ${active ? "active" : ""} ${disabled ? "disabled" : ""}` }).append($("<button>", { type: "button", class: "page-link", "data-page": page, disabled, "aria-current": active ? "page" : null }).text(label)));
+            add("‹", current - 1, current === 1);
+            const visible = [...new Set([1, current - 1, current, current + 1, pages])].filter(p => p > 0 && p <= pages).sort((a, b) => a - b);
+            let previous = 0;
+            visible.forEach(p => { if (p - previous > 1) add("…", 0, true); add(p, p, false, p === current); previous = p; });
+            add("›", current + 1, current === pages);
+        }
+    }
+    function runSearch(page = 1, random = false, newQuery = true) {
+        if (!ready) return;
+        if (newQuery) { query_snapshot = requestParams(); persist(); }
+        const token = ++request_id;
+        random_view = random; view = null;
+        $("#catalog-results-section").removeClass("d-none"); collapse_welcome_banner.hide();
+        $("#catalog-card-container, #catalog-pagination").empty();
+        $("#catalog-status").text(t("catalog_searching")); $("#catalog-spinner").removeClass("d-none");
+        const params = { ...query_snapshot, page, page_size, count: page_size };
+        if (random) { delete params.genres; delete params.rj_id; }
+        $.ajax({ url: random ? "/api/random" : "/api/search", data: params, dataType: "json", timeout: 60000 })
+            .done(data => { if (token !== request_id) return; if (data.state !== "success") { $("#catalog-status").text(t("catalog_error")); return; } view = data; renderView(); })
+            .fail(() => { if (token === request_id) $("#catalog-status").text(t("catalog_error")); })
+            .always(() => { if (token === request_id) $("#catalog-spinner").addClass("d-none"); });
+    }
+    function copyTags(id) {
+        const workno = normalizeProductId(id), token = ++copy_id;
+        if (!rjid_regex.test(workno)) { $("#rjid-work-name").text(t("product_id_invalid")); return; }
+        $("#rjid-work-name").text(t("catalog_searching"));
+        $.ajax({ url: "/api/works", data: { rj_id: workno }, dataType: "json", timeout: 10000 })
+            .done(data => {
+                if (token !== copy_id) return;
+                if (data.state !== "success") { $("#rjid-work-name").text(t("catalog_error")); return; }
+                const work = data.works[workno];
+                if (!work || !work.index) { $("#rjid-work-name").text(t("work_not_in_local_db")); return; }
+                const tags = (work.tags || []).filter(id => Object.hasOwn(locale_data.genres, id));
+                if (!tags.length) { $("#rjid-work-name").text(t("no_copy_tags")); return; }
+                tags.forEach(id => search_genres.add.add(id));
+                reference_id = workno; reference_name = work.name; $("#rjid").val(workno);
+                renderSelections(); refreshLabels(); $("#rjid-work-name").text(work.name); changed();
+            }).fail(() => { if (token === copy_id) $("#rjid-work-name").text(t("catalog_error")); });
+    }
+    function hideCopy(returnFocus = false) {
+        copy_open = false; return_copy_focus = returnFocus; popover.hide();
+        $("#copy-tags-btn").attr("aria-expanded", "false");
+    }
+    $("#copy-tags-btn").on("click", () => {
+        copy_open = !copy_open;
+        copy_open ? popover.show() : hideCopy();
+    });
+    $("#copy-tags-btn").on("shown.bs.popover", () => {
+        if (!copy_open) { popover.hide(); return; }
+        $("#copy-tags-btn").attr("aria-expanded", "true"); document.getElementById("rjid").focus();
+    }).on("hidden.bs.popover", () => {
+        document.getElementById("copy-tags-store").append(copy_content);
+        $("#copy-tags-btn").attr("aria-expanded", "false");
+        if (return_copy_focus) { return_copy_focus = false; document.getElementById("copy-tags-btn").focus({ preventScroll: true }); }
+    });
+    $(document).on("click", event => {
+        if (!$(event.target).closest("#copy-tags-btn, .copy-tags-popover, .catalog-find-similar").length) hideCopy();
+    }).on("keydown", event => {
+        if (event.key === "Escape" && copy_open) { event.preventDefault(); event.stopPropagation(); hideCopy(true); }
+    });
+    $("#copy-tags-form").on("submit", event => { event.preventDefault(); copyTags($("#rjid").val()); });
+    $("#rjid").on("input", () => { copy_id++; $("#rjid-work-name").empty(); });
+    $("#reference-work").on("click", "#clear-reference", () => { reference_id = reference_name = ""; copy_id++; refreshLabels(); changed(); });
+    $("#catalog-card-container").on("click", ".catalog-find-similar", function () { copy_open = true; popover.show(); $("#rjid").val($(this).attr("data-rjid")); copyTags($(this).attr("data-rjid")); });
+    $("#catalog-search-form").on("submit", event => { event.preventDefault(); runSearch(); });
+    $("#search-btn").on("click", () => runSearch());
+    $("#similar-random-btn").on("click", () => runSearch(1, true));
+    $("#catalog-pagination").on("click", "button[data-page]:not(:disabled)", function () { runSearch(Number($(this).attr("data-page")), false, false); });
+    $("#similar-reset-btn").on("click", () => { applyPreset(default_preset); view = query_snapshot = null; hideCopy(); $("#catalog-results-section").addClass("d-none"); $("#catalog-card-container, #catalog-pagination").empty(); collapse_welcome_banner.show(); });
+    $("#search-panel").on("input change", "input, select", function () { if (this.id !== "rjid") { updateSliders(); setDateRangeText($("#date-range").val()); changed(); } });
+    $("#advanced-options-panel").on("shown.bs.collapse hidden.bs.collapse", persist);
+    $("#search-terms-container").on("click", "[data-remove-genre]", function () { search_genres[$(this).attr("data-type")].delete($(this).attr("data-remove-genre")); renderSelections(); changed(); })
+        .on("click", "[data-remove-format]", function () { search_categories.delete($(this).attr("data-remove-format")); renderSelections(); changed(); });
+    $("#genre-modal").on("show.bs.modal", function (event) {
+        const type = $(event.relatedTarget).attr("data-genre-action") || "add";
+        $(this).attr("data-action", type);
+        $("#genre-container input").each(function () { this.checked = search_genres[type].has(this.value); });
+        $("#genre-modal-title").text(t(type === "add" ? "search_genres_modal_title" : `${type}_genres_modal_title`));
+        $("#modal-desc").text(t("selected_genres_hint"));
+        $("#selected-genre-container").empty();
+    });
+    $("#genre-container").on("change", "input", function () {
+        const type = $("#genre-modal").attr("data-action"), id = this.value;
+        this.checked ? search_genres[type].add(id) : search_genres[type].delete(id);
+        if (this.checked && type !== "add") search_genres[type === "included" ? "excluded" : "included"].delete(id);
+        renderSelections(); changed();
+    });
+    $("#btn-genre-clear").on("click", () => { search_genres[$("#genre-modal").attr("data-action")].clear(); $("#genre-container input").prop("checked", false); renderSelections(); changed(); });
+    $("#genre-search-bar").on("input", function () {
+        const q = this.value.toLocaleLowerCase();
+        $("#genre-container .genre-item").each(function () { $(this).toggle($(this).text().toLocaleLowerCase().includes(q)); });
+    });
+    $("#workformat-modal").on("show.bs.modal", () => { $("#categories-container div input").each(function () { this.checked = search_categories.has(this.value); }); });
+    $("#categories-container").on("change", "input", function () {
+        const ids = Object.hasOwn(locale_data.work_formats, this.value) ? [this.value] : $(this).closest(".category-container").find("div input").map((_, x) => x.value).get();
+        ids.forEach(id => this.checked ? search_categories.add(id) : search_categories.delete(id));
+        $(this).closest(".category-container").find("div input").each(function () { this.checked = search_categories.has(this.value); });
+        renderSelections(); changed();
+    });
+    for (const [button, input, value] of [["date", "date-range", 5], ["dlcount", "dlcount-range", 50], ["popularity-weight", "popularity-weight-range", 1]]) {
+        $(`#${button}-reset-btn`).on("click", function () { if ($(this).hasClass("disabled")) return; $(`#${input}`).val(value).trigger("input"); });
+    }
+    let themeTransition = null;
+    $("#dark-toggle").on("click", function () {
+        if (themeTransition) return;
+        const next = document.documentElement.dataset.bsTheme === "dark" ? "light" : "dark";
+        const update = () => { applyTheme(next); persist(); };
+        if (!document.startViewTransition) { update(); return; }
         const rect = this.getBoundingClientRect();
-        const x = rect.left + rect.width / 2;
-        const y = rect.top + rect.height / 2;
-        const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
-        const reduce_motion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-        const transition = document.startViewTransition(() => applyTheme(next));
-        if (reduce_motion) {
-            transition.ready.catch(() => { });
-            return;
-        }
+        const x = rect.left + rect.width / 2, y = rect.top + rect.height / 2;
+        const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+        const transition = document.startViewTransition(update);
+        themeTransition = transition;
         transition.ready.then(() => {
+            if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
             document.documentElement.animate(
                 { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
                 { duration: 600, easing: "ease-in-out", pseudoElement: "::view-transition-new(root)" }
             );
         }).catch(() => { });
+        transition.finished.catch(() => { }).finally(() => { themeTransition = null; });
     });
-
-    // catalogue age filter: summarise the ticked options on the dropdown button
-    function updateCatalogAgeSummary() {
-        const labels = [1, 2, 3]
-            .filter(i => $(`#catalog-age-${i}`).prop("checked"))
-            .map(i => $(`#catalog-age-${i}-label`).text());
-        $("#catalog-age-summary").text(labels.length ? labels.join(", ") : localisation.catalog_age_any[lang]);
-    }
-    $("#catalog-age-container").on("change", "input[type=checkbox]", updateCatalogAgeSummary);
-
-    // credits: reveal the text one character at a time (links stay intact)
-    function typeCredits(container) {
-        const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
-        const text_nodes = [];
-        while (walker.nextNode()) {
-            text_nodes.push(walker.currentNode);
-        }
-        const chars = [];
-        text_nodes.forEach(node => {
-            const fragment = document.createDocumentFragment();
-            for (const ch of node.nodeValue) {
-                const span = document.createElement("span");
-                span.className = "tw-char";
-                span.textContent = ch;
-                chars.push(span);
-                fragment.appendChild(span);
-            }
-            node.replaceWith(fragment);
-        });
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-            chars.forEach(span => span.classList.add("tw-on"));
-            return;
-        }
-        const caret = document.createElement("span");
-        caret.className = "tw-caret";
-        caret.setAttribute("aria-hidden", "true");
-        container.appendChild(caret);
-        let i = 0;
-        const timer = setInterval(() => {
-            if (i >= chars.length) {
-                clearInterval(timer);
-                setTimeout(() => caret.remove(), 1500);
-                return;
-            }
-            chars[i].classList.add("tw-on");
-            chars[i].after(caret);
-            i++;
-        }, 45);
-    }
-    typeCredits(document.getElementById("credits"));
-
-    // when the genre is clicked, remove the genre
-    $("#selected-genre-container").on("click", ".btn-genre", function () {
-        var genre_id = $(this).data("genre-value");
-        var genre_type = $('#selected-genre-container').attr('data-genre-action');
-        $(`#genre-${genre_id}`).prop("checked", false);
-        removeGenre(genre_type, genre_id);
-    });
-    $("#search-terms-container").on("click", ".btn-genre", function () {
-        var genre_id = $(this).data("genre-value");
-        var genre_type = $(this.parentElement).attr("id").split("-")[1];
-        removeGenre(genre_type, genre_id);
-    });
-    // when the work format is clicked, remove the work format
-    $("#workformat-add-container").on("click", ".btn-genre", function () {
-        var workformat_id = $(this).data("workformat-value");
-        $(`#workformat-${workformat_id}`).prop("checked", false);
-        removeWorkFormat(workformat_id);
-    });
-
-    // select all the work format when click on the title
-    $("#categories-container").on("change", ".category-container p input[type=checkbox]", function () {
-        var isChecked = $(this).prop("checked");
-        $(this.parentElement.parentElement).find("div input[type=checkbox]").prop("checked", isChecked);
-        $(this.parentElement.parentElement).find("div input[type=checkbox]").each(function () {
-            var workformat_id = $(this).val();
-            if (isChecked) {
-                addWorkFormat(workformat_id);
-            } else {
-                removeWorkFormat(workformat_id);
-            }
-        });
-    });
-
-    // clear all the genre
-    $("#btn-genre-clear").click(function () {
-        var genre_type = $('#selected-genre-container').attr('data-genre-action');
-        search_genres[genre_type].forEach(genre_id => {
-            $(`#genre-${genre_id}`).prop("checked", false);
-            removeGenre(genre_type, genre_id);
-        });
-    });
-
-    // automatically filter the genre in the modal when the user type in the search bar
-    $("#genre-search-bar").keyup(function () {
-        // first reset the genre visibility
-        $("#genre-container .category-container .form-check").show();
-        $("#genre-container .category-container").show();
-
-        let search = $(this).val().toLowerCase();
-        if (search != "") {
-            // hide the genre that does not match the search
-            $("#genre-container .category-container .form-check-label").each(function () {
-                let label = $(this).text().trim().replace(/\s+\S+$/, '').toLowerCase();
-                if (!label.includes(search)) {
-                    $(this).parent().hide();
-                }
-            });
-
-            // hide the category that does not have any visible genre
-            $("#genre-container .category-container").each(function () {
-                if ($(this).find(".form-check:visible").length == 0) {
-                    $(this).hide();
-                }
-            });
-        }
-    });
-
-    // automatically fill genres when the user type in the search bar
-    $("#rjid").keyup(function () {
-        var rjid = $(this).val().toUpperCase();
-        if (rjid_regex.test(rjid)) {
-            $.ajax({
-                url: "/api/works",
-                dataType: "json",
-                data: { "rj_id": rjid },
-                success: function (data) {
-                    if (data["state"] == "success") {
-                        if (Object.keys(data["works"][rjid]).length !== 0) {
-                            var work = data["works"][rjid];
-                            console.log(work);
-
-                            var work_name = work["name"];
-                            var genres = work["tags"];
-
-                            // clear the genre container
-                            clearAddGenre();
-
-                            // check if the genre is in locale_data
-                            // if not, remove it from the genre list
-                            genres = genres.filter(genre_id => genre_id in locale_data.genres);
-
-                            // add the genre
-                            genres.forEach(genre_id => {
-                                addGenre("add", genre_id);
-                            });
-
-                            // if the work format is empty, add the work format of the work
-                            if (search_categories.size == 0) {
-                                var workformat_id = work["type"];
-                                addWorkFormat(workformat_id);
-                                $(`#workformat-${workformat_id}`).prop("checked", true);
-                            }
-
-                            // add the name to the search bar
-                            $("#rjid-work-name").text(work_name);
-                        } else {
-                            $("#rjid-work-name").text(localisation.work_not_in_local_db[lang]);
-                        }
-                    } else {
-                        console.log(data["message"]);
-                        $("#rjid-work-name").text(localisation.error_occurred[lang]);
-                    }
-                },
-
-                error: function (xhr, ajaxOptions, thrownError) {
-                    console.log(xhr.status);
-                    console.log(thrownError);
-                    $("#rjid-work-name").text(localisation.error_occurred[lang]);
-                },
-                timeout: 3000,
-            });
-        } else if (rjid == "") {
-            $("#rjid-work-name").text("");
-        } else {
-            $("#rjid-work-name").text(localisation.work_input_hint_format[lang]);
-        }
-    });
-
-    // switch pages
-    $("#pagination-container").on("click", ".page-link", function () {
-        console.log("page clicked");
-        if ($(this).hasClass("active")) {
-            return;
-        }
-        $("#pagination-container .page-link").removeClass("active");
-        $(this).addClass("active");
-        const page = $(this).text();
-        collapse_result_card_container.hide();
-
-        getSearchResults(page, success => {
-            if (success) {
-                setTimeout(function () {
-                    collapse_result_card_container.show();
-                }, 750);
-            } else {
-                console.log("Error occurred when getting the search results.");
-            }
-        });
-    });
-
-    // clear the search result
-    $("#clear-btn").click(function () {
-        if (!$("#result-card-container").hasClass("show")) {
-            return;
-        }
-        if (!$("#loading-spinner-container").hasClass("visually-hidden")) {
-            return;
-        }
-        if (!$("#search-info").hasClass("visually-hidden")) {
-            $("#search-info").addClass("visually-hidden");
-        }
-        $("#pagination-container").empty();
-        $("#search-end-of-result").css("display", "none");
-        $("#side-btn-container").css("display", "none");
-        collapse_result_card_container.hide();
-        if ($("#catalog-results-section").hasClass("d-none")) {
-            collapse_welcome_banner.show();
-        }
-        setTimeout(function () {
-            $("#search-result-container").empty();
-        }, 500);
-    });
-
-    $("#expand-btn").click(function () {
-        if (!$("#result-card-container").hasClass("show")) {
-            return;
-        }
-        if (!$("#loading-spinner-container").hasClass("visually-hidden")) {
-            return;
-        }
-        const collapseThumbList = document.querySelectorAll('.work-card > .collapse')
-        const collapseList = [...collapseThumbList].map(collapseEl => new bootstrap.Collapse(collapseEl, { toggle: false }))
-        if ($(this).attr("data-action") == "open") {
-            collapseList.forEach(collapseEl => collapseEl.show())
-            $(this).attr("data-action", "close");
-            $(this).html(`<i class="fa-regular fa-envelope-open"></i>`);
-        } else {
-            collapseList.forEach(collapseEl => collapseEl.hide())
-            $(this).attr("data-action", "open");
-            $(this).html(`<i class="fa-regular fa-envelope"></i>`);
-        }
-    });
-
-    // ---- local catalogue search (title / circle / RJ ID) ----
-    // Independent of the similarity search: own request counter, results, and pagination.
-    var catalog_request_id = 0;
-    var catalog_query = null;
-    // the last rendered catalogue results, kept to render them again in another language
-    var catalog_view = null;
-    var catalog_title_key = "catalog_results_title";
-
-    $("#catalog-search-form").on("submit", function (event) {
-        event.preventDefault();
-        const q = $("#catalog-query").val().trim();
-        if (q == "") {
-            $("#catalog-query").focus();
-            return;
-        }
-        catalog_query = {
-            q: q,
-            field: $("#catalog-field").val(),
-            ages: catalogAges(),
-        };
-        catalogSearch(1);
-    });
-
-    $("#catalog-pagination").on("click", ".page-item:not(.disabled):not(.active) .page-link", function () {
-        catalogSearch(parseInt($(this).attr("data-page"), 10));
-        $("#catalog-results-section").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-
-    $("#catalog-card-container").on("click", ".catalog-find-similar", function () {
-        // fill the RJ ID so its genres and format are loaded; the user starts the similarity search
-        $("#rjid").val($(this).attr("data-rjid")).trigger("keyup");
-        showSearchTab("similar");
-        $("#search-panel").get(0).scrollIntoView({ behavior: "smooth", block: "start" });
-        $("#rjid").focus();
-    });
-
-    function startCatalogResults(title_key) {
-        catalog_view = null;
-        catalog_title_key = title_key;
-        $("#catalog-results-title").text(localisation[title_key][lang]);
-        $("#catalog-results-section").removeClass("d-none");
-        if ($("#welcome-banner").hasClass("show")) {
-            collapse_welcome_banner.hide();
-        }
-        $("#catalog-card-container, #catalog-pagination").empty();
-        $("#catalog-status").text(localisation.catalog_searching[lang]);
-        $("#catalog-spinner").removeClass("d-none");
-    }
-
-    function catalogAges() {
-        return [1, 2, 3].map(i => $(`#catalog-age-${i}`).prop("checked") ? "1" : "0").join("");
-    }
-
-    function catalogSearch(page) {
-        const request_id = ++catalog_request_id;
-        startCatalogResults("catalog_results_title");
-
-        $.ajax({
-            url: "/api/search",
-            dataType: "json",
-            data: { ...catalog_query, page: page, page_size: page_size },
-            timeout: 20000,
-            success: function (data) {
-                if (request_id != catalog_request_id) {
-                    return;  // a newer search has started
-                }
-                $("#catalog-spinner").addClass("d-none");
-                catalog_view = { kind: "search", data: data };
-                renderCatalogResults(data);
-            },
-            error: function (xhr, ajaxOptions, thrownError) {
-                if (request_id != catalog_request_id) {
-                    return;
-                }
-                console.log(xhr.status, xhr.responseJSON ? xhr.responseJSON.message : thrownError);
-                $("#catalog-spinner").addClass("d-none");
-                $("#catalog-status").text(localisation.catalog_error[lang]);
-            },
+    function changeLanguage(next) {
+        lang = next; lang_raw = next.replace("_", "-"); refreshLabels(); persist();
+        const token = ++locale_id;
+        $.getJSON("/api/locale/" + lang).done(data => {
+            if (token !== locale_id || data.state !== "success") return;
+            locale_data = data.locale; setGenreLocale(locale_data); setWorkFormatLocale(locale_data); renderSelections(); renderView();
         });
     }
-
-    function renderCatalogResults(data) {
-        if (data.results.length == 0) {
-            $("#catalog-status").text(localisation.catalog_no_results[lang]);
-            renderCatalogPagination(data.page, Math.ceil(data.total / data.page_size));
-            return;
-        }
-        const start = (data.page - 1) * data.page_size + 1;
-        const end = start + data.results.length - 1;
-        $("#catalog-status").html(localisation.catalog_summary[lang]
-            .replace("{total}", Number(data.total).toLocaleString(lang_raw))
-            .replace("{start}", Number(start).toLocaleString(lang_raw))
-            .replace("{end}", Number(end).toLocaleString(lang_raw)));
-
-        const label = localisation.catalog_find_similar[lang];
-        $("#catalog-card-container").append(data.results.map(work => catalogCardTemplate(work, label)));
-        renderCatalogPagination(data.page, Math.ceil(data.total / data.page_size));
-    }
-
-    function renderCatalogPagination(current, page_count) {
-        const container = $("#catalog-pagination").empty();
-        if (page_count <= 1) {
-            return;
-        }
-        const item = (label, page, state, aria_label) => {
-            const link = $("<button>", { "type": "button", "class": "page-link", "data-page": page }).text(label);
-            if (aria_label) {
-                link.attr("aria-label", aria_label);
-            }
-            if (state == "active") {
-                link.attr("aria-current", "page");
-            }
-            return $("<li>", { "class": `page-item ${state || ""}` }).append(link);
-        };
-
-        // first, last, and two pages either side of the current one
-        const pages = [...new Set([1, current - 2, current - 1, current, current + 1, current + 2, page_count])]
-            .filter(p => p >= 1 && p <= page_count)
-            .sort((a, b) => a - b);
-
-        container.append(item("‹", current - 1, current == 1 ? "disabled" : "", localisation.catalog_previous_page[lang]));
-        let previous = 0;
-        pages.forEach(p => {
-            if (p - previous > 1) {
-                container.append(item("…", "", "disabled"));
-            }
-            container.append(item(p, p, p == current ? "active" : ""));
-            previous = p;
-        });
-        container.append(item("›", current + 1, current == page_count ? "disabled" : "", localisation.catalog_next_page[lang]));
-    }
-
-    // ---- random works from the local database ----
-    // on the keyword tab only the catalogue age filter applies; on the similar tab the similarity filters apply
-    $("#random-works-btn").click(() => randomWorks({ ages: catalogAges() }));
-    $("#similar-random-btn").click(() => randomWorks(similarFilters()));
-
-    function randomWorks(filters) {
-        const request_id = ++catalog_request_id;
-        startCatalogResults("random_results_title");
-        $("#result-panel").scrollTop(0);
-
-        $.ajax({
-            url: "/api/random",
-            dataType: "json",
-            data: { ...filters, count: page_size },
-            timeout: 20000,
-            success: function (data) {
-                if (request_id != catalog_request_id) {
-                    return;
-                }
-                $("#catalog-spinner").addClass("d-none");
-                catalog_view = { kind: "random", data: data };
-                renderRandomResults(data);
-            },
-            error: function (xhr, ajaxOptions, thrownError) {
-                if (request_id != catalog_request_id) {
-                    return;
-                }
-                console.log(xhr.status, xhr.responseJSON ? xhr.responseJSON.message : thrownError);
-                $("#catalog-spinner").addClass("d-none");
-                $("#catalog-status").text(localisation.catalog_error[lang]);
-            },
-        });
-    }
-
-    function renderRandomResults(data) {
-        if (data.results.length == 0) {
-            $("#catalog-status").text(localisation.catalog_no_results[lang]);
-            return;
-        }
-        $("#catalog-status").text(localisation.random_summary[lang]
-            .replace("{count}", Number(data.results.length).toLocaleString(lang_raw)));
-        const label = localisation.catalog_find_similar[lang];
-        $("#catalog-card-container").append(data.results.map(work => catalogCardTemplate(work, label)));
-    }
-
-    // render the catalogue results again, e.g. after the language changed
-    function refreshCatalogView() {
-        if (!catalog_view) {
-            return;
-        }
-        $("#catalog-card-container, #catalog-pagination").empty();
-        $("#catalog-results-title").text(localisation[catalog_title_key][lang]);
-        if (catalog_view.kind == "search") {
-            renderCatalogResults(catalog_view.data);
-        } else {
-            renderRandomResults(catalog_view.data);
-        }
-    }
-
-    // the filters of the similarity search; the genres to look for and the popularity weights are not filters
-    function excludedOptions() {
-        return [[2, "AIG"], [3, "AIP"], [4, "GRO"], [5, "MEN"]]
-            .filter(([i]) => $(`#misc-checkbox-${i}`).prop("checked"))
-            .map(([, option]) => option).join("+");
-    }
-
-    function similarFilters() {
-        const filters = {
-            ages: [1, 2, 3].map(i => $(`#age-checkbox-${i}`).prop("checked") ? "1" : "0").join(""),
-            excluded_low_rate: $("#misc-checkbox-1").prop("checked"),
-        };
-        const lists = {
-            categories: [...search_categories],
-            included_genres: [...search_genres.included].slice(0, 5),
-            excluded_genres: [...search_genres.excluded].slice(0, 5),
-        };
-        for (const key in lists) {
-            if (lists[key].length > 0) {
-                filters[key] = lists[key].join("+");
-            }
-        }
-        if ($("#date-range-enabled").prop("checked")) {
-            const date = monthFunc(months_from_start, $("#date-range").val());
-            filters.since = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-        }
-        if (excludedOptions()) {
-            filters.excluded_options = excludedOptions();
-        }
-        return filters;
-    }
-
-    // ---- reset: clear every search and go back to the welcome page ----
-    $("#reset-search-btn, #similar-reset-btn").click(function () {
-        catalog_request_id++;
-        catalog_query = null;
-        catalog_view = null;
-        $("#catalog-search-form").get(0).reset();
-        updateCatalogAgeSummary();
-        $("#catalog-results-section").addClass("d-none");
-        $("#catalog-card-container, #catalog-pagination").empty();
-        $("#catalog-spinner").addClass("d-none");
-
-        similarity_request_id++;
-        applyPreset(default_preset);
-        $("#loading-spinner-container, #search-info").addClass("visually-hidden");
-        $("#pagination-container").empty();
-        $("#search-end-of-result").css("display", "none");
-        $("#side-btn-container").css("display", "none");
-        collapse_result_card_container.hide();
-
-        collapse_welcome_banner.show();
-        $("#result-panel").scrollTop(0);
-    });
-
-    // ---- presets: the similarity search settings, saved as JSON files in the presets folder ----
-    const preset_name_regex = /^[\p{L}\p{N}\p{M}_\- ]{1,60}$/u;
-    let last_preset_name = "";
-
-    function currentPreset() {
-        const slider = (switch_id, range_id) => ({
-            enabled: $(switch_id).prop("checked"),
-            value: parseInt($(range_id).val(), 10),
-        });
-        const rj_id = $("#rjid").val().trim().toUpperCase();
-        return {
-            rj_id: rjid_regex.test(rj_id) ? rj_id : "",
-            genres: [...search_genres.add],
-            included_genres: [...search_genres.included],
-            excluded_genres: [...search_genres.excluded],
-            categories: [...search_categories],
-            popularity_weight: slider("#popularity-weight-enabled", "#popularity-weight-range"),
-            release_date: slider("#date-range-enabled", "#date-range"),
-            download_count: slider("#dlcount-range-enabled", "#dlcount-range"),
-            ages: [1, 2, 3].map(i => $(`#age-checkbox-${i}`).prop("checked")),
-            excluded_contents: [1, 2, 3, 4, 5].map(i => $(`#misc-checkbox-${i}`).prop("checked")),
-            advanced_options_open: $("#advanced-options-panel").hasClass("show"),
-        };
-    }
-    const default_preset = currentPreset();
-
-    // presets may come from any file, so only known ids and well-formed values are used
-    function applyPreset(preset) {
-        preset = { ...default_preset, ...preset };
-        const ids = value => Array.isArray(value) ? value.map(String) : [];
-        const known = table => id => locale_data != null && Object.hasOwn(locale_data[table], id);
-
-        ["add", "included", "excluded"].forEach(type => {
-            [...search_genres[type]].forEach(id => removeGenre(type, id));
-        });
-        [...search_categories].forEach(id => removeWorkFormat(id));
-        $("#categories-container input[type=checkbox]").prop("checked", false);
-
-        ids(preset.genres).filter(known("genres")).forEach(id => addGenre("add", id));
-        ids(preset.included_genres).filter(known("genres")).forEach(id => addGenre("included", id));
-        ids(preset.excluded_genres).filter(known("genres")).forEach(id => addGenre("excluded", id));
-        ids(preset.categories).filter(known("work_formats")).forEach(id => {
-            addWorkFormat(id);
-            $(`#workformat-${id}`).prop("checked", true);
-        });
-
-        // set the RJ ID without its keyup handler, which would replace the genres
-        const rj_id = typeof preset.rj_id == "string" && rjid_regex.test(preset.rj_id) ? preset.rj_id : "";
-        $("#rjid").val(rj_id);
-        showWorkName(rj_id);
-
-        const slider = (option, switch_id, range_id) => {
-            option = option || {};
-            if (Number.isFinite(Number(option.value))) {
-                $(range_id).val(Number(option.value));  // the range input clamps it
-            }
-            $(switch_id).prop("checked", option.enabled === true).trigger("change");
-        };
-        slider(preset.popularity_weight, "#popularity-weight-enabled", "#popularity-weight-range");
-        slider(preset.release_date, "#date-range-enabled", "#date-range");
-        slider(preset.download_count, "#dlcount-range-enabled", "#dlcount-range");
-        setDateRangeText($("#date-range").val());
-
-        const flags = (value, count) => Array.isArray(value) && value.length == count ? value : [];
-        flags(preset.ages, 3).forEach((on, i) => $(`#age-checkbox-${i + 1}`).prop("checked", on === true));
-        flags(preset.excluded_contents, 5).forEach((on, i) => $(`#misc-checkbox-${i + 1}`).prop("checked", on === true));
-
-        const panel = bootstrap.Collapse.getOrCreateInstance("#advanced-options-panel", { toggle: false });
-        if (preset.advanced_options_open === true) {
-            panel.show();
-        } else {
-            panel.hide();
-        }
-    }
-
-    function showWorkName(rj_id) {
-        if (rj_id == "") {
-            $("#rjid-work-name").text("");
-            return;
-        }
-        $.getJSON("/api/works", { rj_id: rj_id }).done(data => {
-            if ($("#rjid").val() != rj_id) {
-                return;
-            }
-            const work = data.state == "success" ? data.works[rj_id] : null;
-            $("#rjid-work-name").text(work && work.name ? work.name : localisation.work_not_in_local_db[lang]);
-        }).fail(() => $("#rjid-work-name").text(localisation.error_occurred[lang]));
-    }
-
-    function presetError(xhr) {
-        if (xhr.status == 400) {
-            return localisation.preset_name_invalid[lang];
-        }
-        return xhr.status == 409 ? localisation.preset_too_many[lang] : localisation.preset_save_failed[lang];
-    }
-
-    $("#preset-save-modal").on("show.bs.modal", function () {
+    $("#lang-toggle").on("click", () => changeLanguage(language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length]));
+    $("#preset-save-modal").on("show.bs.modal", () => {
         $("#preset-name").val(last_preset_name).removeClass("is-invalid");
-        $.getJSON("/api/presets").done(data => {
-            $("#preset-name-list").empty().append(data.presets.map(preset => $("<option>", { value: preset.name })));
-        });
-    }).on("shown.bs.modal", function () {
-        $("#preset-name").trigger("focus").trigger("select");
+        $.getJSON("/api/presets").done(data => $("#preset-name-list").empty().append(data.presets.map(p => $("<option>", { value: p.name }))));
     });
-    $("#preset-name").on("input", function () {
-        $(this).removeClass("is-invalid");
-    });
-
-    $("#preset-save-form").on("submit", function (event) {
-        event.preventDefault();
-        const name = $("#preset-name").val().trim();
-        const fail = message => {
-            $("#preset-save-error").text(message);
-            $("#preset-name").addClass("is-invalid").trigger("focus");
-        };
-        if (!preset_name_regex.test(name)) {
-            fail(localisation.preset_name_invalid[lang]);
-            return;
-        }
+    $("#preset-save-form").on("submit", event => {
+        event.preventDefault(); const name = $("#preset-name").val().trim();
+        if (!/^[\p{L}\p{N}\p{M}_\- ]{1,60}$/u.test(name)) { $("#preset-name").addClass("is-invalid"); $("#preset-save-error").text(t("preset_name_invalid")); return; }
         $("#preset-save-submit").prop("disabled", true);
-        $.ajax({
-            type: "PUT",
-            url: `/api/presets/${encodeURIComponent(name)}`,
-            data: JSON.stringify(currentPreset()),
-            contentType: "application/json",
-            dataType: "json",
-            timeout: 10000,
-        }).done(() => {
-            last_preset_name = name;
-            bootstrap.Modal.getOrCreateInstance("#preset-save-modal").hide();
-            const icon = $("#preset-save-btn i").attr("class", "fa-solid fa-check");
-            setTimeout(() => icon.attr("class", "fa-solid fa-floppy-disk"), 1500);
-        }).fail(xhr => fail(presetError(xhr))).always(() => {
-            $("#preset-save-submit").prop("disabled", false);
-        });
+        $.ajax({ type: "PUT", url: "/api/presets/" + encodeURIComponent(name), data: JSON.stringify(currentPreset()), contentType: "application/json" })
+            .done(() => { last_preset_name = name; bootstrap.Modal.getOrCreateInstance("#preset-save-modal").hide(); })
+            .fail(xhr => { $("#preset-name").addClass("is-invalid"); $("#preset-save-error").text(t(xhr.status === 409 ? "preset_too_many" : "preset_save_failed")); })
+            .always(() => $("#preset-save-submit").prop("disabled", false));
     });
-
-    function setPresetStatus(text, is_error) {
-        $("#preset-list-status").text(text).toggleClass("d-none", text == "").toggleClass("text-danger", Boolean(is_error));
+    function finishPresetLoad(p, name) {
+        applyPreset(p); last_preset_name = name;
+        const modal = bootstrap.Modal.getOrCreateInstance("#preset-load-modal");
+        $("#preset-load-modal").one("shown.bs.modal", () => modal.hide());
+        modal.hide();
     }
-
-    function finishPresetLoad(preset, name) {
-        applyPreset(preset);
-        last_preset_name = name;
-        bootstrap.Modal.getOrCreateInstance("#preset-load-modal").hide();
-        showSearchTab("similar");
-    }
-
-    $("#preset-load-modal").on("show.bs.modal", function () {
-        const list = $("#preset-list").empty();
-        setPresetStatus(localisation.catalog_searching[lang]);
+    $("#preset-load-modal").on("show.bs.modal", () => {
+        $("#preset-list").empty(); $("#preset-list-status").removeClass("d-none").text(t("catalog_searching"));
         $.getJSON("/api/presets").done(data => {
-            $("#preset-folder").text(`${data.folder}/`);
-            if (data.presets.length == 0) {
-                setPresetStatus(localisation.preset_none[lang]);
-                return;
-            }
-            setPresetStatus("");
-            list.append(data.presets.map(preset => $("<button>", {
-                "type": "button",
-                "class": "list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3",
-                "data-preset": preset.name,
-            }).append(
-                $("<span>", { "class": "text-break" }).text(preset.name),
-                $("<small>", { "class": "text-body-secondary text-nowrap" })
-                    .text(new Date(preset.modified).toLocaleString(lang_raw, { dateStyle: "medium", timeStyle: "short" }))
-            )));
-        }).fail(() => setPresetStatus(localisation.preset_load_failed[lang], true));
+            $("#preset-folder").text(data.folder + "/"); $("#preset-list-status").text(data.presets.length ? "" : t("preset_none"));
+            $("#preset-list").append(data.presets.map(p => $("<button>", { type: "button", class: "list-group-item list-group-item-action", "data-preset": p.name }).text(p.name)));
+        }).fail(() => $("#preset-list-status").text(t("preset_load_failed")));
     });
-
-    $("#preset-list").on("click", "button[data-preset]", function () {
-        const name = $(this).attr("data-preset");
-        $.getJSON(`/api/presets/${encodeURIComponent(name)}`)
-            .done(data => finishPresetLoad(data.preset, name))
-            .fail(() => setPresetStatus(localisation.preset_load_failed[lang], true));
-    });
-
-    // a preset file from somewhere else is read in the browser only
-    $("#preset-file-btn").click(function () {
-        $("#preset-file-input").val("").trigger("click");
-    });
+    $("#preset-list").on("click", "[data-preset]", function () { const name = $(this).attr("data-preset"); $.getJSON("/api/presets/" + encodeURIComponent(name)).done(d => finishPresetLoad(d.preset, name)).fail(() => $("#preset-list-status").text(t("preset_load_failed"))); });
+    $("#preset-file-btn").on("click", () => $("#preset-file-input").val("").trigger("click"));
     $("#preset-file-input").on("change", function () {
-        const file = this.files[0];
-        if (!file) {
-            return;
-        }
-        if (file.size > 100000) {
-            setPresetStatus(localisation.preset_load_failed[lang], true);
-            return;
-        }
-        file.text().then(text => {
-            const preset = JSON.parse(text);
-            if (preset == null || typeof preset != "object" || Array.isArray(preset)) {
-                throw new Error("not a preset");
-            }
-            finishPresetLoad(preset, file.name.replace(/\.json$/i, ""));
-        }).catch(() => setPresetStatus(localisation.preset_load_failed[lang], true));
+        const file = this.files[0]; if (!file) return;
+        const fail = () => $("#preset-list-status").removeClass("d-none").text(t("preset_load_failed"));
+        if (file.size > 100000) { fail(); return; }
+        file.text().then(text => { const p = JSON.parse(text); if (!p || typeof p !== "object" || Array.isArray(p)) throw Error(); finishPresetLoad(p, file.name.replace(/\.json$/i, "")); }).catch(fail);
     });
-
-    // post the search data to the server
-    var similarity_request_id = 0;
-    $("#search-btn").click(function () {
-        const rjid_val = $("#rjid").val().toUpperCase();
-        const rj_id = rjid_regex.test(rjid_val) ? rjid_val : null;
-
-        // check if the user has selected at least one genre
-        if (search_genres.add.size == 0) {
-            $("#genre-add-container-hint").focus();
-            return;
-        }
-        if (search_categories.size == 0) {
-            $("#workformat-add-container-hint").focus();
-            return;
-        }
-
-        const excluded_options = excludedOptions() || null;
-
-        // hide the result container and show the loading animation
-        $("#loading-spinner-container").removeClass("visually-hidden");
-        if (!$("#search-info").hasClass("visually-hidden")) {
-            $("#search-info").addClass("visually-hidden");
-        }
-        if ($("#welcome-banner").hasClass("show")) {
-            collapse_welcome_banner.hide();
-        }
-        if ($("#result-card-container").hasClass("show")) {
-            collapse_result_card_container.hide();
-        }
-
-        // send the search data to the server
-        const request_id = ++similarity_request_id;
-        $.ajax({
-            type: "POST",
-            url: "/api/similarity",
-            data: JSON.stringify({
-                genres: Array.from(search_genres.add).slice(0, 10).join("+"),
-                included_genres: Array.from(search_genres.included).slice(0, 5).join("+") || null,
-                excluded_genres: Array.from(search_genres.excluded).slice(0, 5).join("+") || null,
-                rj_id: rj_id,
-                categories: Array.from(search_categories).join("+") || null,
-                ages: `${$("#age-checkbox-1").prop("checked") ? "1" : "0"}${$("#age-checkbox-2").prop("checked") ? "1" : "0"}${$("#age-checkbox-3").prop("checked") ? "1" : "0"}`,
-                date: monthFunc(months_from_start, $("#date-range-enabled").prop("checked") ? $("#date-range").val() : 0),
-                dlcount: $("#dlcount-range-enabled").prop("checked") ? $("#dlcount-range").val() : 50,
-                weight_func: $("#popularity-weight-enabled").prop("checked") ? popularity_weight_func[$("#popularity-weight-range").val()] : popularity_weight_func[1],
-                excluded_low_rate: $("#misc-checkbox-1").prop("checked"),
-                excluded_options: excluded_options,
-                // "excluding_interest"
-            }),
-            contentType: "application/json",
-            success: function (data) {
-                if (request_id != similarity_request_id) {
-                    return;  // reset while searching
-                }
-                if (data.state == "success") {
-                    // save to local storage
-                    localStorage.setItem("last_search_result_info", JSON.stringify(data.info));
-                    localStorage.setItem("last_search_result_list", JSON.stringify(data.result));
-
-                    // set up the pagination
-                    $("#pagination-container").empty();
-                    const page_count = Math.ceil(data.result.length / page_size);
-                    for (let i = 1; i <= page_count; i++) {
-                        $("#pagination-container").append(`<li class="page-item"><a class="page-link" href="#">${i}</a></li>`);
-                    }
-                    // make the first page active
-                    $("#pagination-container .page-link").first().addClass("active");
-
-                    // get the data of the first page
-                    getSearchResults(1, success => {
-                        if (success) {
-                            // show the result card container
-                            setTimeout(function () {
-                                collapse_result_card_container.show();
-                            }, 750);
-                        } else {
-                            console.log("Error occurred when getting the search results.");
-                        }
-                    });
-
-                    // hide the loading animation and show the result info
-                    $("#loading-spinner-container").addClass("visually-hidden");
-                    $("#search-info-count").text(data.info.length);
-                    $("#search-info-time").text(Math.round(data.info.time * 100) / 100);
-                    $("#search-info").removeClass("visually-hidden");
-
-                    $("#side-btn-container").css("display", "block");
-
-                } else if (data.state == "error") {
-                    console.log(data.message);
-                }
-            },
-
-            error: function (xhr, ajaxOptions, thrownError) {
-                console.log(xhr.status);
-                console.log(thrownError);
-            },
-            timeout: 20000,
-            dataType: "json",
-        });
-    });
-
+    function setDateRangeText(value) { $("#date-range-time").text(monthFunc(months_from_start, value).toLocaleDateString(lang_raw, { year: "numeric", month: "long" })); $("#date-range-ago").text(""); }
     function setLocaleText(lang) {
         $("#search-title").text(localisation_words.search[lang]);
         $("#rjid").attr("placeholder", localisation.work_input[lang]);
@@ -1139,284 +456,15 @@ $(document).ready(function () {
         $("#preset-file-btn-label").text(localisation.preset_open_file[lang]);
     }
 
-    // ---- language button: English -> Japanese -> Traditional Chinese -> Simplified Chinese -> English ----
-    var locale_request_id = 0;
-
-    function showInfo() {
-        if (info_data) {
-            $("#banner-text").html(info_data.length);
-            $("#navbar-time").html(info_data.time);
-        }
-    }
-
-    $("#lang-toggle").click(function () {
-        changeLanguage(language_cycle[(language_cycle.indexOf(lang) + 1) % language_cycle.length]);
-    });
-
-    // The glyphs are created once; changing the language only moves them, which the CSS transition animates.
-    function showLanguageGlyph() {
-        const button = $("#lang-toggle");
-        if (!button.children().length) {
-            button.append(language_cycle.map(code => $("<span>", { "class": "lang-glyph lang-strip-glyph", "aria-hidden": "true" }).text(language_glyphs[code])));
-        }
-        const count = language_cycle.length;
-        const current = language_cycle.indexOf(lang);
-        button.children().each(function (index) {
-            // -1 is the glyph that just left, 1 the next one, 2 the one after, hidden
-            this.style.setProperty("--offset", ((index - current + 1 + count) % count) - 1);
-            this.classList.toggle("active", index === current);
-        });
-    }
-
-    function changeLanguage(next) {
-        lang = next;
-        lang_raw = next.replace("_", "-");
-        try {
-            localStorage.setItem("lang", lang);
-        } catch (e) { }
-        document.documentElement.lang = lang_raw;
-
-        // texts of the page (this also resets the info lines, which are filled in again below)
-        setLocaleText(lang);
-        showInfo();
-        setDateRangeText($("#date-range").val());
-        if (!$("#search-info").hasClass("visually-hidden")) {
-            const result_info = JSON.parse(localStorage.getItem("last_search_result_info"));
-            if (result_info) {
-                $("#search-info-count").text(result_info.length);
-                $("#search-info-time").text(Math.round(result_info.time * 100) / 100);
-            }
-        }
-        const rjid = $("#rjid").val().toUpperCase();
-        if (rjid != "" && !rjid_regex.test(rjid)) {
-            $("#rjid-work-name").text(localisation.work_input_hint_format[lang]);
-        } else if (rjid != "") {
-            showWorkName(rjid);
-        }
-
-        // names of the genres and work formats come from the server, in the chosen language
-        const request_id = ++locale_request_id;
-        $.getJSON("/api/locale/" + lang, data => {
-            if (request_id != locale_request_id || data.state != "success") {
-                return;
-            }
-            locale_data = data.locale;
-            setGenreLocale(locale_data);
-            setWorkFormatLocale(locale_data);
-            $("#genre-search-bar").trigger("keyup");
-            search_categories.forEach(id => $(`#workformat-${id}`).prop("checked", true));
-
-            const rename_tags = (selector, attribute, table) => $(selector).each(function () {
-                const item = locale_data[table][$(this).attr(attribute)];
-                if (item) {
-                    $(this).html(`${item.name} <i class="fa-solid fa-xmark"></i>`);
-                }
-            });
-            rename_tags("a[data-genre-value]", "data-genre-value", "genres");
-            rename_tags("a[data-workformat-value]", "data-workformat-value", "work_formats");
-
-            refreshCatalogView();
-            if (!$("#search-info").hasClass("visually-hidden") && localStorage.getItem("last_search_result_list")) {
-                getSearchResults(current_page, () => { });
-            }
-        });
-    }
-
-    function addGenre(genre_type, genre_id) {
-        genre_id = genre_id.toString();
-
-        search_genres[genre_type].add(genre_id);
-        switch (genre_type) {
-            case "included":
-                removeGenre("excluded", genre_id);
-                break;
-            case "excluded":
-                removeGenre("included", genre_id);
-                break;
-            default:
-                break;
-        }
-
-        var genre_html = $("<a>", {
-            "class": `btn me-1 ${genre_class[genre_type]} rounded-pill btn-genre`,
-            "role": "button",
-            "data-genre-value": genre_id
-        }).html(`${locale_data["genres"][genre_id]["name"]} <i class="fa-solid fa-xmark"></i>`);
-
-        $("#selected-genre-container").append(genre_html);
-        $(`#genre-${genre_type}-container`).append(genre_html.clone());
-        if (genre_type == "add") {
-            collapse_genres_container.show();
-        }
-        // hide the hint
-        $(`#genre-${genre_type}-container-hint`).css("display", "none");
-        $(`#selected-genre-container-hint`).css("display", "none");
-
-        $("#selected-genre-size").text(search_genres[genre_type].size);
-    }
-
-    function removeGenre(genre_type, genre_id) {
-        genre_id = genre_id.toString();
-        search_genres[genre_type].delete(genre_id);
-
-        $(`#selected-genre-container a[data-genre-value=${genre_id}]`).remove();
-        $(`#genre-${genre_type}-container a[data-genre-value=${genre_id}]`).remove();
-        if (genre_type == "add" && $("#genre-add-container").children().length == 0) {
-            collapse_genres_container.hide();
-        }
-        // show the hint
-        if ($(`#genre-${genre_type}-container`).children().length == 0) {
-            $(`#genre-${genre_type}-container-hint`).css("display", "block");
-        }
-        if ($("#selected-genre-container").children().length == 0) {
-            $(`#selected-genre-container-hint`).css("display", "block");
-        }
-
-        $("#selected-genre-size").text(search_genres[genre_type].size);
-    }
-
-    function addWorkFormat(workformat_id) {
-        search_categories.add(workformat_id);
-        var workformat_category_id = locale_data["work_formats"][workformat_id]["category_id"];
-        var category_color = work_format_class[workformat_category_id];
-
-        var workformat_html = $("<a>", {
-            "class": `btn me-1 rounded-pill btn-genre text-${category_color}-emphasis bg-${category_color}-subtle border border-${category_color}-subtle`,
-            "role": "button",
-            "data-workformat-value": workformat_id
-        }).html(`${locale_data["work_formats"][workformat_id]["name"]} <i class="fa-solid fa-xmark"></i>`);
-
-        $(`#workformat-add-container`).append(workformat_html);
-        $(`#workformat-add-container-hint`).css("display", "none");
-    }
-
-    function removeWorkFormat(workformat_id) {
-        search_categories.delete(workformat_id);
-
-        $(`#workformat-add-container a[data-workformat-value=${workformat_id}]`).remove();
-        if ($(`#workformat-add-container`).children().length == 0) {
-            $(`#workformat-add-container-hint`).css("display", "block");
-        }
-    }
-
-    function setDateRangeText(value) {
-        var release_date = monthFunc(months_from_start, value);
-        $("#date-range-time").text(release_date.toLocaleDateString(lang_raw, {
-            year: 'numeric',
-            month: 'long'
-        }));
-        // print how many years and months ago
-        var years = currentDate.getFullYear() - release_date.getFullYear();
-        var months = currentDate.getMonth() - release_date.getMonth();
-        if (months < 0) {
-            years--;
-            months += 12;
-        }
-        var years_str = years > 0 ? years + localisation_words.years[lang] : "";
-        var months_str = months > 0 ? months + localisation_words.months[lang] : "";
-        var ago_str = years_str + (years_str != "" && months_str != "" ? localisation_words.and_date[lang] : "") + months_str;
-        if (ago_str == "") {
-            ago_str = localisation_words.less_than_month[lang];
-        }
-        $("#date-range-ago").text(ago_str);
-    }
-
-    function getSearchResults(page, callback) {
-        const start = (page - 1) * page_size;
-        const end = start + page_size;
-        var flag = false;
-
-        // get the result data from local storage
-        const result_info = JSON.parse(localStorage.getItem("last_search_result_info"));
-        const result_list_all = JSON.parse(localStorage.getItem("last_search_result_list"));
-        const result_list = result_list_all.slice(start, end);
-        if (result_list.length == 0) {
-            // no more results
-        } else {
-            current_page = page;
-
-            // get the work info from the server
-            const result_list_ids = result_list.map(result => result[0]);
-            $.ajax({
-                url: "/api/works?" + $.param({ rj_id: result_list_ids }, true),
-                success: function (data) {
-                    if (data.state == "success") {
-                        $("#result-card-container").empty();
-                        result_list.forEach(result => {
-                            // prepare the work info
-                            // result = [rj_id, similarity]
-                            const rjid = result[0];
-                            const similarity = Math.round(result[1] * 100, 1);
-                            const work = data.works[rjid];
-
-                            // prepare the html
-                            const imgUrl = getImgUrl(rjid)
-                            const workName = work.name;
-                            const category = locale_data.work_formats[work.type].name;
-                            const category_color = work_format_class[locale_data.work_formats[work.type].category_id];
-                            const additionTypeTag = work.options.map(option => {
-                                if (option in localisation_options) {
-                                    option = localisation_options[option][lang];
-                                }
-                                unknown_option = ["ORW", "RE", "TRS", "workupdate"]
-                                if (option != "REV" && option != "TRI" && !unknown_option.includes(option)) {
-                                    return `<span class='badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle'>${option}</span>`
-                                } else {
-                                    return "";
-                                }
-                            }).join(" ");
-                            const workUrl = `https://www.dlsite.com/${work.siteId}/work/=/product_id/${rjid}.html`
-                            const rating = work.rate / 10;
-                            const ratingCount = work.rateCount;
-                            const dlCount = work.dlCount;
-                            const commentUrl = work.reviewCount == 0 ? "#" : `https://www.dlsite.com/${work.siteId}/work/reviewlist/=/product_id/${rjid}.html`;
-                            const commentCount = work.reviewCount;
-                            const artist = work.maker;
-                            const date = work.registDate;
-                            const description = work.description;
-                            const tags = work.tags.map(genre => {
-                                if (genre in locale_data.genres) {
-                                    return `<span class='badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle'>${locale_data.genres[genre].name}</span>`
-                                } else {
-                                    return "";
-                                }
-                            }).join(" ");
-
-                            const workCard = cardTemplate(imgUrl, workName, similarity, category_color, category, additionTypeTag, workUrl, rating, ratingCount, dlCount, commentUrl, commentCount, artist, date, description, tags, rjid);
-
-                            $("#result-card-container").append(workCard);
-                        });
-                        $("#search-info-start").text(start + 1);
-                        $("#search-info-end").text(Math.min(end, result_list_all.length));
-
-                        // if is last page, show the message
-                        if (end >= result_list_all.length) {
-                            $("#search-end-of-result").css("display", "block");
-                            if (result_info.length > end) {
-                                $("#search-end-of-result").text(localisation.end_of_result[lang]);
-                            } else {
-                                $("#search-end-of-result").text(localisation.end_of_result_2[lang]);
-                            }
-                        } else {
-                            $("#search-end-of-result").css("display", "none");
-                        }
-                        flag = true;
-                    } else {
-                        console.log(data.message);
-                    }
-                    callback(flag);
-                },
-                error: function (xhr, ajaxOptions, thrownError) {
-                    console.log(xhr.status);
-                    console.log(thrownError);
-                    callback(flag);
-                },
-                timeout: 3000,
-            });
-        }
-    }
+    applyTheme(saved_settings?.theme || "light"); refreshLabels();
+    $("#search-btn, #similar-random-btn, #preset-save-btn, #preset-load-btn, #copy-tags-btn").prop("disabled", true);
+    $.getJSON("/api/locale/" + lang).done(data => {
+        if (data.state !== "success") return;
+        locale_data = data.locale; setGenreLocale(locale_data); setWorkFormatLocale(locale_data);
+        applyPreset(saved_settings?.settings || default_preset); ready = true; persist();
+        $("#search-btn, #similar-random-btn, #preset-save-btn, #preset-load-btn, #copy-tags-btn").prop("disabled", false);
+    }).fail(() => $("#scoring-hint").text(t("catalog_error")));
 });
-
 function setGenreLocale(locale_data) {
     const genres = locale_data.genres;
     const genre_locale_dict = {};
@@ -1532,37 +580,14 @@ function setWorkFormatLocale(locale_data) {
     }
 }
 
-function clearAddGenre() {
-    search_genres["add"].clear();
-    $("#genre-add-container").empty();
-}
-
-function getImgUrl(rjid, siteId) {
-    // we need to round up to the nearest 1000
-    // RJ01043707 -> RJ01044000
-    // RJ210437 -> RJ210000
-    if (/^RJ(?:\d{8})$/.test(rjid)) {
-        var rjid_int = parseInt(rjid.slice(2, 10));
-        rjid_int = Math.ceil(rjid_int / 1000) * 1000;
-        rjid_int = rjid_int.toString().padStart(8, "0");
-    } else if (/^RJ(?:\d{6})$/.test(rjid)) {
-        var rjid_int = parseInt(rjid.slice(2, 8));
-        rjid_int = Math.ceil(rjid_int / 1000) * 1000;
-        rjid_int = rjid_int.toString().padStart(6, "0");
-    } else {
-        return "";
+function getImgUrl(id, imageUrl) {
+    if (typeof imageUrl === "string") {
+        try { const url = new URL(imageUrl, "https://img.dlsite.jp"); if (url.protocol === "https:" && url.hostname === "img.dlsite.jp") return url.href; } catch (_) { }
     }
-    return `https://img.dlsite.jp/resize/images2/work/doujin/RJ${rjid_int}/${rjid}_img_main_240x240.jpg`;
+    if (!rjid_regex.test(id)) return "";
+    const prefix = id.slice(0, 2), digits = id.slice(2);
+    const bucket = String(Math.ceil(Number(digits) / 1000) * 1000).padStart(digits.length, "0");
+    const folder = { RJ: "doujin", BJ: "books", VJ: "professional" }[prefix];
+    return `https://img.dlsite.jp/resize/images2/work/${folder}/${prefix}${bucket}/${id}_img_main_240x240.jpg`;
 }
-
-function monthFunc(months_from_start, value) {
-    const factor = 1;
-    try {
-        const months_after = Math.log(value / factor + 1) / Math.log(100 / factor + 1) * months_from_start;
-        const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + months_after, startDate.getDate());
-        return endDate;
-    } catch (error) {
-        console.error(error);
-        return startDate;
-    }
-}
+function monthFunc(months, value) { return new Date(2000, Math.floor(Math.log(Number(value) + 1) / Math.log(101) * months), 1); }

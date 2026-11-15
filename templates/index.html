@@ -1,44 +1,33 @@
-<!doctype html>
-<html lang="en" data-bs-theme="light">
+<!DOCTYPE html>
 
+<html data-bs-theme="light" lang="en">
 <head>
-    <title>DLfilter</title>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <!-- Meta tags for link preview -->
-    <meta property="og:title" content="DLfilter - AI-powered search engine for DLsite">
-    <meta property="og:type" content="website">
-    <!-- <meta property="og:image" content="{{ url_for('static', path='/imgs/og-image.png') }}"> -->
-    <meta property="og:url" content="https://dlfilter.moe/">
-    <meta property="og:description"
-        content="DLfilter enables you to find similar works on DLsite with the power of genre-wise semantic search technology. Now you can find your favorite works more easily!">
-    <meta property=" og:site_name" content="DLfilter">
-
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet"
-        type="text/css">
-    <!-- Bootstrap CSS v5.3 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
-        integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
-        crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"
-        integrity="sha384-fbbOQedDUMZZ5KreZpsbe1LCZPVmfTnH7ois6mU1QK+m14rQ1l2bGBq41eYeM/fS"
-        crossorigin="anonymous"></script>
-
-    <script src="https://code.jquery.com/jquery-3.7.0.min.js"
-        integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
-    <script src="{{ asset_url('localisation.js') }}"></script>
-    <script src="{{ asset_url('template.js') }}"></script>
-    <script src="{{ asset_url('script.js') }}"></script>
-    <script type="module" defer>
+<title>DLfilter</title>
+<!-- Required meta tags -->
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1, shrink-to-fit=no" name="viewport"/>
+<!-- Meta tags for link preview -->
+<meta content="DLfilter - AI-powered search engine for DLsite" property="og:title"/>
+<meta content="website" property="og:type"/>
+<!-- <meta property="og:image" content="{{ url_for('static', path='/imgs/og-image.png') }}"> -->
+<meta content="https://dlfilter.moe/" property="og:url"/>
+<meta content="DLfilter enables you to find similar works on DLsite with the power of genre-wise semantic search technology. Now you can find your favorite works more easily!" property="og:description"/>
+<meta content="DLfilter" property=" og:site_name"/>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" type="text/css"/>
+<!-- Bootstrap CSS v5.3 -->
+<link crossorigin="anonymous" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" rel="stylesheet"/>
+<script crossorigin="anonymous" integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r" src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
+<script crossorigin="anonymous" integrity="sha384-fbbOQedDUMZZ5KreZpsbe1LCZPVmfTnH7ois6mU1QK+m14rQ1l2bGBq41eYeM/fS" src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+<script crossorigin="anonymous" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="{{ asset_url('localisation.js') }}"></script>
+<script src="{{ asset_url('template.js') }}"></script>
+<script src="{{ asset_url('script.js') }}"></script>
+<script defer="" type="module">
         import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
         polyfillCountryFlagEmojis();
     </script>
-
-    <link rel="stylesheet" href="{{ asset_url('style.css') }}">
-    <style type="text/css">
+<link href="{{ asset_url('style.css') }}" rel="stylesheet"/>
+<style type="text/css">
         @import url('https://fonts.googleapis.com/css?family=Noto+Sans+JP');
 
         ::-webkit-scrollbar {
@@ -90,963 +79,426 @@
             transition: all 0.2s ease-in-out;
         }
     </style>
+<script defer src="/static/setup.js"></script>
 </head>
-
 <body>
-    <header>
-        <!-- place header here -->
-    </header>
-    <main>
-        <!-- Genre Modal -->
-        <div class="modal fade" id="genre-modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5 px-2" id="genre-modal-title">Search Genres</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="container-fluid">
-                            <div class="row px-2 gy-3">
-                                <nav class="nav nav-justified flex-md-row flex-column shadow-sm border rounded-3 small"
-                                    id="category-link-nav">
-                                </nav>
-                                <input class="form-control focus-ring" type="text"
-                                    placeholder="What genres are you looking for?" id="genre-search-bar">
-                                <div>
-                                    <div class="row align-items-center">
-                                        <div class="col-11 border-end">
-                                            <div id="modal-desc" class="mb-2">Description of the modal.</div>
-                                            <div id="selected-genre-container">Placeholder for selected genres.
+<header>
+<!-- place header here -->
+</header>
+<main>
+<!-- Genre Modal -->
+<div aria-hidden="true" class="modal fade" id="genre-modal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
+<div class="modal-content">
+<div class="modal-header">
+<h1 class="modal-title fs-5 px-2" id="genre-modal-title">Search Genres</h1>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<div class="container-fluid">
+<div class="row px-2 gy-3">
+<nav class="nav nav-justified flex-md-row flex-column shadow-sm border rounded-3 small" id="category-link-nav">
+</nav>
+<input class="form-control focus-ring" id="genre-search-bar" placeholder="What genres are you looking for?" type="text"/>
+<div>
+<div class="row align-items-center">
+<div class="col-11 border-end">
+<div class="mb-2" id="modal-desc">Description of the modal.</div>
+<div id="selected-genre-container">Placeholder for selected genres.
                                             </div>
-                                        </div>
-                                        <div class="col-1">
-                                            <button type="button"
-                                                class="btn btn-danger rounded-pill shadow-sm btn-genre"
-                                                id="btn-genre-clear"><i class="fa-solid fa-trash"></i></button>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div id="genre-container">
-                                    <div class="category-container row p-2 mb-3 me-1 border rounded-3">
-                                        <p><b>Category name</b></p>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-1">
-                                            <label class="form-check-label" for="flexCheckDefault-1">
+</div>
+<div class="col-1">
+<button class="btn btn-danger rounded-pill shadow-sm btn-genre" id="btn-genre-clear" type="button"><i class="fa-solid fa-trash"></i></button>
+</div>
+</div>
+</div>
+<div id="genre-container">
+<div class="category-container row p-2 mb-3 me-1 border rounded-3">
+<p><b>Category name</b></p>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-1" type="checkbox"/>
+<label class="form-check-label" for="flexCheckDefault-1">
                                                 Genre 1
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-2">
-                                            <label class="form-check-label text-small" for="flexCheckDefault-2">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-2" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault-2">
                                                 Genre 2
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-3">
-                                            <label class="form-check-label text-small" for="flexCheckDefault-3">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-3" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault-3">
                                                 Genre 3
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-4">
-                                            <label class="form-check-label" for="flexCheckDefault-4">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-4" type="checkbox"/>
+<label class="form-check-label" for="flexCheckDefault-4">
                                                 Genre 4
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-5">
-                                            <label class="form-check-label text-small" for="flexCheckDefault-5">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-5" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault-5">
                                                 Genre 5
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault-6">
-                                            <label class="form-check-label text-small" for="flexCheckDefault-6">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault-6" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault-6">
                                                 Genre 6
                                             </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Category Modal -->
-        <div class="modal fade" id="workformat-modal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5 px-2" id="workformat-modal-title">Select categories</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="container-fluid">
-                            <div class="row px-2 gy-3">
-                                <nav class="nav nav-justified flex-md-row flex-column shadow-sm border rounded-3 small"
-                                    id="categories-link-nav">
-                                </nav>
-                                <div id="categories-container">
-                                    <div class="category-container row p-2 mb-3 me-1 border rounded-3">
-                                        <div class="form-chec">
-                                            <!-- <div > -->
-                                            <input class="form-check-input me-1" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label" for="flexCheckDefault">
-                                                <p><b>Default</b></p>
-                                            </label>
-                                            <!-- </div> -->
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label" for="flexCheckDefault">
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Category Modal -->
+<div aria-hidden="true" class="modal fade" id="workformat-modal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-xl modal-fullscreen-lg-down">
+<div class="modal-content">
+<div class="modal-header">
+<h1 class="modal-title fs-5 px-2" id="workformat-modal-title">Select categories</h1>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<div class="container-fluid">
+<div class="row px-2 gy-3">
+<nav class="nav nav-justified flex-md-row flex-column shadow-sm border rounded-3 small" id="categories-link-nav">
+</nav>
+<div id="categories-container">
+<div class="category-container row p-2 mb-3 me-1 border rounded-3">
+<div class="form-chec">
+<!-- <div > -->
+<input class="form-check-input me-1" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label" for="flexCheckDefault">
+<p><b>Default</b></p>
+</label>
+<!-- </div> -->
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label text-small" for="flexCheckDefault">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label text-small" for="flexCheckDefault">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label" for="flexCheckDefault">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label text-small" for="flexCheckDefault">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                        <div class="col-4 form-check">
-                                            <input class="form-check-input" type="checkbox" id="flexCheckDefault">
-                                            <label class="form-check-label text-small" for="flexCheckDefault">
+</div>
+<div class="col-4 form-check">
+<input class="form-check-input" id="flexCheckDefault" type="checkbox"/>
+<label class="form-check-label text-small" for="flexCheckDefault">
                                                 Default
                                             </label>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- save preset -->
-        <div class="modal fade" id="preset-save-modal" tabindex="-1" aria-labelledby="preset-save-modal-title"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form class="modal-content" id="preset-save-form" autocomplete="off" novalidate>
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="preset-save-modal-title">Save preset</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <label for="preset-name" class="form-label" id="preset-name-label">Preset name</label>
-                        <input type="text" class="form-control focus-ring" id="preset-name" maxlength="60"
-                            list="preset-name-list" aria-describedby="preset-save-hint">
-                        <datalist id="preset-name-list"></datalist>
-                        <div class="invalid-feedback" id="preset-save-error"></div>
-                        <div class="form-text" id="preset-save-hint">Saved to the presets folder. A preset with the
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- save preset -->
+<div aria-hidden="true" aria-labelledby="preset-save-modal-title" class="modal fade" id="preset-save-modal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<form autocomplete="off" class="modal-content" id="preset-save-form" novalidate="">
+<div class="modal-header">
+<h1 class="modal-title fs-5" id="preset-save-modal-title">Save preset</h1>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<label class="form-label" for="preset-name" id="preset-name-label">Preset name</label>
+<input aria-describedby="preset-save-hint" class="form-control focus-ring" id="preset-name" list="preset-name-list" maxlength="60" type="text"/>
+<datalist id="preset-name-list"></datalist>
+<div class="invalid-feedback" id="preset-save-error"></div>
+<div class="form-text" id="preset-save-hint">Saved to the presets folder. A preset with the
                             same name is replaced.</div>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                            id="preset-save-cancel">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="preset-save-submit"><i
-                                class="fa-solid fa-floppy-disk"></i> <span id="preset-save-submit-label">Save</span></button>
-                    </div>
-                </form>
-            </div>
-        </div>
-
-        <!-- load preset -->
-        <div class="modal fade" id="preset-load-modal" tabindex="-1" aria-labelledby="preset-load-modal-title"
-            aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h1 class="modal-title fs-5" id="preset-load-modal-title">Load preset</h1>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="form-text mb-2"><i class="fa-regular fa-folder-open"></i> <code
-                                id="preset-folder">presets/</code></div>
-                        <div class="list-group" id="preset-list"></div>
-                        <div class="text-body-secondary text-center py-3 d-none" id="preset-list-status"></div>
-                    </div>
-                    <div class="modal-footer">
-                        <input type="file" id="preset-file-input" accept=".json,application/json" hidden>
-                        <button type="button" class="btn btn-outline-secondary me-auto" id="preset-file-btn"><i
-                                class="fa-solid fa-file-import"></i> <span id="preset-file-btn-label">Open another
+</div>
+<div class="modal-footer">
+<button class="btn btn-secondary" data-bs-dismiss="modal" id="preset-save-cancel" type="button">Cancel</button>
+<button class="btn btn-primary" id="preset-save-submit" type="submit"><i class="fa-solid fa-floppy-disk"></i> <span id="preset-save-submit-label">Save</span></button>
+</div>
+</form>
+</div>
+</div>
+<!-- load preset -->
+<div aria-hidden="true" aria-labelledby="preset-load-modal-title" class="modal fade" id="preset-load-modal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+<div class="modal-content">
+<div class="modal-header">
+<h1 class="modal-title fs-5" id="preset-load-modal-title">Load preset</h1>
+<button aria-label="Close" class="btn-close" data-bs-dismiss="modal" type="button"></button>
+</div>
+<div class="modal-body">
+<div class="form-text mb-2"><i class="fa-regular fa-folder-open"></i> <code id="preset-folder">presets/</code></div>
+<div class="list-group" id="preset-list"></div>
+<div class="text-body-secondary text-center py-3 d-none" id="preset-list-status"></div>
+</div>
+<div class="modal-footer">
+<input accept=".json,application/json" hidden="" id="preset-file-input" type="file"/>
+<button class="btn btn-outline-secondary me-auto" id="preset-file-btn" type="button"><i class="fa-solid fa-file-import"></i> <span id="preset-file-btn-label">Open another
                                 file…</span></button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
-                            id="preset-load-cancel">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+<button class="btn btn-secondary" data-bs-dismiss="modal" id="preset-load-cancel" type="button">Cancel</button>
+</div>
+</div>
+</div>
+</div>
+<!-- language switch: cycles English, Japanese, Traditional Chinese, Simplified Chinese -->
+<button aria-label="Language: English" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm" id="lang-toggle" title="Language: English" type="button"></button>
+<!-- theme switch -->
+<button aria-label="Switch to dark theme" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm" id="dark-toggle" title="Switch to dark theme" type="button"></button>
+<!-- Go top -->
+<!-- main content -->
+<div class="container-fluid">
+<div class="row align-items-center mx-1" id="search-panel-container">
+<!-- search panel -->
+<div class="col-md-3 p-3 shadow-sm rounded-3" id="search-panel">
+<h4 style="text-align: center; margin-bottom: 15px;"><b id="search-title">Search</b></h4>
+<!-- tab 1: local catalogue search by title / circle / RJ ID -->
+<form autocomplete="off" id="catalog-search-form" novalidate="" role="search">
+<h5><label for="catalog-query" id="catalog-title">Search by</label></h5>
+<div class="input-group mb-2">
+<select aria-label="Search in" class="form-select focus-ring" id="catalog-field">
+<option id="catalog-field-all" selected="" value="all">All</option>
+<option id="catalog-field-title" value="title">Title</option>
+<option id="catalog-field-artist" value="artist">Circle</option>
+<option id="catalog-field-id" value="id">RJ ID</option>
+</select>
+<input aria-describedby="catalog-hint" class="form-control focus-ring" id="catalog-query" maxlength="100" placeholder="Title, circle or product ID" type="search"/>
+</div>
+<div class="d-flex align-items-center gap-2 mb-1">
+</div>
+<div class="form-text" id="catalog-hint">Searches the local database.<br/>Width and letter case are ignored.</div>
+</form>
+<!-- tab 2: similarity search by RJ ID, genres and categories -->
+<div id="search-terms-container">
+<!-- container for genres -->
+<div id="genre-selection-section"><div class="row">
+<div class="col mb-2 mt-2">
+<h5><i class="fa-solid fa-tags" id="genre-title-icon"></i> <span id="genre-title" tabindex="-1">Genres</span> <a class="btn btn-outline-primary btn-add rounded-pill" data-bs-target="#genre-modal" data-bs-toggle="modal" data-genre-action="add" id="genre-add-btn" role="button"><i class="fa-solid fa-plus"></i></a><button aria-expanded="false" aria-label="Copy tags from a work" class="btn btn-outline-primary btn-add rounded-pill" id="copy-tags-btn" type="button"><i class="fa-regular fa-copy"></i></button></h5><div class="form-text mb-2" id="scoring-hint"></div><div class="form-text mb-2" id="reference-work" role="status"></div>
+<div id="genre-add-container"></div>
+<div class="form-text focus-ring focus-ring-danger rounded-2" id="genre-add-container-hint" tabindex="-1">Not selected.</div>
+<hr/>
+</div>
+</div><div class="" id="collapse-genres-container">
+<div class="row">
+<div class="col mb-2">
+<h6><i class="fa-solid fa-filter"></i> <span id="included-genre-title">Included
+                                            genres</span> <a class="btn btn-outline-success btn-add rounded-pill" data-bs-target="#genre-modal" data-bs-toggle="modal" data-genre-action="included" role="button"><i class="fa-solid fa-plus"></i></a></h6>
+<div id="genre-included-container"></div>
+<div class="form-text" id="genre-included-container-hint">Not selected.</div>
+<hr/>
+</div>
+</div>
+<div class="row">
+<div class="col mb-2">
+<h6><i class="fa-solid fa-filter-circle-xmark"></i> <span id="excluded-genre-title">Excluded genres</span> <a class="btn btn-outline-danger btn-add rounded-pill" data-bs-target="#genre-modal" data-bs-toggle="modal" data-genre-action="excluded" role="button"><i class="fa-solid fa-plus"></i></a></h6>
+<div id="genre-excluded-container"></div>
+<div class="form-text" id="genre-excluded-container-hint">Not selected.</div>
+<hr/>
+</div>
+</div>
+</div></div>
 
-        <!-- language switch: cycles English, Japanese, Traditional Chinese, Simplified Chinese -->
-        <button type="button" id="lang-toggle" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm"
-            aria-label="Language: English" title="Language: English"></button>
-
-        <!-- theme switch -->
-        <button type="button" id="dark-toggle" class="btn btn-outline-dark btn-circle rounded-circle shadow-sm"
-            aria-label="Switch to dark theme" title="Switch to dark theme"></button>
-
-        <!-- Go top -->
-        <div id="side-btn-container" style="display: none;">
-            <a id="clear-btn" class="btn btn-danger btn-circle rounded-circle shadow-sm" href="#" role="button"><i
-                    class="fa-solid fa-broom"></i></a>
-            <a id="go-top-btn" class="btn btn-primary btn-circle rounded-circle shadow-sm" href="#" role="button"><i
-                    class="fa-solid fa-chevron-up"></i></a>
-            <a id="expand-btn" class="btn btn-primary btn-circle rounded-circle shadow-sm" href="#" role="button"
-                data-action="open"><i class="fa-regular fa-envelope"></i></a>
-        </div>
-
-        <!-- main content -->
-        <div class="container-fluid">
-            <div class="row align-items-center mx-1" id="search-panel-container">
-                <!-- search panel -->
-                <div class="col-md-3 p-3 shadow-sm rounded-3" id="search-panel">
-                    <h4 style="text-align: center; margin-bottom: 15px;"><b id="search-title">Search</b></h4>
-                    <ul class="nav nav-tabs nav-fill mb-3" id="search-tabs" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="keyword-tab" data-bs-toggle="tab"
-                                data-bs-target="#keyword-pane" type="button" role="tab" aria-controls="keyword-pane"
-                                aria-selected="true"><i class="fa-solid fa-magnifying-glass"></i> <span
-                                    id="keyword-tab-label">Find works</span></button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="similar-tab" data-bs-toggle="tab"
-                                data-bs-target="#similar-pane" type="button" role="tab" aria-controls="similar-pane"
-                                aria-selected="false"><i class="fa-solid fa-wand-magic-sparkles"></i> <span
-                                    id="similar-tab-label">Find similar</span></button>
-                        </li>
-                    </ul>
-                    <div class="tab-content" id="search-tab-content">
-                        <!-- tab 1: local catalogue search by title / circle / RJ ID -->
-                        <div class="tab-pane fade show active" id="keyword-pane" role="tabpanel"
-                            aria-labelledby="keyword-tab" tabindex="0">
-                            <form id="catalog-search-form" role="search" autocomplete="off" novalidate>
-                                <h5><label for="catalog-query" id="catalog-title">Search by</label></h5>
-                                <div class="input-group mb-2">
-                                    <select class="form-select focus-ring" id="catalog-field"
-                                        aria-label="Search in">
-                                        <option value="all" id="catalog-field-all" selected>All</option>
-                                        <option value="title" id="catalog-field-title">Title</option>
-                                        <option value="artist" id="catalog-field-artist">Circle</option>
-                                        <option value="id" id="catalog-field-id">RJ ID</option>
-                                    </select>
-                                    <input type="search" class="form-control focus-ring" id="catalog-query"
-                                        maxlength="100" placeholder="Title, circle or RJ ID"
-                                        aria-describedby="catalog-hint">
-                                    <button type="submit" class="btn btn-primary" id="catalog-search-btn"
-                                        aria-label="Search"><i class="fa-solid fa-magnifying-glass"></i></button>
-                                </div>
-                                <div class="d-flex align-items-center gap-2 mb-1">
-                                <div class="dropdown me-auto" id="catalog-age-container">
-                                    <button type="button" class="btn btn-outline-secondary btn-sm dropdown-toggle"
-                                        id="catalog-age-btn" data-bs-toggle="dropdown" data-bs-auto-close="outside"
-                                        aria-expanded="false">
-                                        <span id="catalog-age-btn-label">Age</span>: <span
-                                            id="catalog-age-summary">All ages</span>
-                                    </button>
-                                    <div class="dropdown-menu p-2 small" aria-labelledby="catalog-age-btn">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="catalog-age-1"
-                                                checked>
-                                            <label class="form-check-label" id="catalog-age-1-label"
-                                                for="catalog-age-1">All ages</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="catalog-age-2">
-                                            <label class="form-check-label" id="catalog-age-2-label"
-                                                for="catalog-age-2">R-rated</label>
-                                        </div>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="catalog-age-3">
-                                            <label class="form-check-label" id="catalog-age-3-label"
-                                                for="catalog-age-3">Adult</label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <button type="button" class="btn btn-outline-secondary btn-sm btn-square"
-                                    id="reset-search-btn" aria-label="Reset search" title="Reset search"><i
-                                        class="fa-solid fa-arrow-rotate-left"></i></button>
-                                <button type="button" class="btn btn-outline-primary btn-sm btn-square"
-                                    id="random-works-btn" aria-label="Random works" title="Random works"><i
-                                        class="fa-solid fa-dice"></i></button>
-                                </div>
-                                <div id="catalog-hint" class="form-text">Searches the local database.<br>Width and letter case are ignored.</div>
-                            </form>
-                        </div>
-                        <!-- tab 2: similarity search by RJ ID, genres and categories -->
-                        <div class="tab-pane fade" id="similar-pane" role="tabpanel" aria-labelledby="similar-tab"
-                            tabindex="0">
-                            <div class="mb-2">
-                                <h5><label for="rjid" id="rjid-title">Copy tags from</label></h5>
-                                <input id="rjid" type="text" class="form-control focus-ring"
-                                    placeholder="RJ number of your favourite work" value=""
-                                    aria-describedby="rjid-work-name">
-                                <div id="rjid-work-name" class="form-text text-center"></div>
-                            </div>
-                    <div id="search-terms-container">
-                        <!-- container for genres -->
-                        <div class="row">
-                            <div class="col mb-2 mt-2">
-                                <h5><i class="fa-solid fa-tags" id="genre-title-icon"></i> <span id="genre-title">Genres</span> <a
-                                        class="btn btn-outline-primary btn-add rounded-pill" role="button"
-                                        id="genre-add-btn" data-bs-toggle="modal" data-bs-target="#genre-modal"
-                                        data-genre-action="add"><i class="fa-solid fa-plus"></i></a></h5>
-                                <div id="genre-add-container"></div>
-                                <div id="genre-add-container-hint"
-                                    class="form-text focus-ring focus-ring-danger rounded-2" tabindex="-1">Select
-                                    at least one genre.</div>
-                                <hr>
-                            </div>
-                        </div>
-                        <div class="collapse" id="collapse-genres-container">
-                            <div class="row">
-                                <div class="col mb-2">
-                                    <h6><i class="fa-solid fa-filter"></i> <span id="included-genre-title">Included
-                                            genres</span> <a class="btn btn-outline-success btn-add rounded-pill"
-                                            role="button" data-bs-toggle="modal" data-bs-target="#genre-modal"
-                                            data-genre-action="included"><i class="fa-solid fa-plus"></i></a></h6>
-                                    <div id="genre-included-container"></div>
-                                    <div id="genre-included-container-hint" class="form-text">Not selected.</div>
-                                    <hr>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col mb-2">
-                                    <h6><i class="fa-solid fa-filter-circle-xmark"></i> <span
-                                            id="excluded-genre-title">Excluded genres</span> <a
-                                            class="btn btn-outline-danger btn-add rounded-pill" role="button"
-                                            data-bs-toggle="modal" data-bs-target="#genre-modal"
-                                            data-genre-action="excluded"><i class="fa-solid fa-plus"></i></a></h6>
-                                    <div id="genre-excluded-container"></div>
-                                    <div id="genre-excluded-container-hint" class="form-text">Not selected.</div>
-                                    <hr>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- container for categories -->
-                        <div class="row">
-                            <div class="col">
-                                <h5><i class="fa-solid fa-box-archive"></i> <span id="workformat-title">Categories</span>
-                                    <a class="btn btn-outline-primary btn-add rounded-pill" role="button"
-                                        data-bs-toggle="modal" data-bs-target="#workformat-modal"><i
-                                            class="fa-solid fa-plus"></i></a>
-                                </h5>
-                                <div id="workformat-add-container"></div>
-                                <div id="workformat-add-container-hint"
-                                    class="form-text focus-ring focus-ring-danger rounded-2" tabindex="-1">Select
-                                    at least one category.</div>
-                                <hr>
-                            </div>
-                        </div>
-                        <!-- container for weights and advanced options -->
-                        <button type="button" class="btn advanced-toggle d-flex align-items-center w-100 px-2 mb-2"
-                            id="advanced-panel-toggle" data-bs-toggle="collapse"
-                            data-bs-target="#advanced-options-panel" aria-expanded="false"
-                            aria-controls="advanced-options-panel">
-                            <i class="fa-solid fa-chevron-right advanced-arrow me-2"></i>
-                            <span id="advanced-panel-switch-label">Show advanced options</span>
-                        </button>
-                        <div class="collapse" id="advanced-options-panel">
-                            <div class="row">
-                                <div class="col mb-3 advanced-option is-off">
-                                    <h5><span class="form-check form-switch float-end mb-0"><input
-                                                class="form-check-input" type="checkbox" role="switch"
-                                                id="popularity-weight-enabled"
-                                                aria-label="Popularity weight"></span><i
-                                            class="fa-solid fa-scale-unbalanced-flip"></i> <span
-                                            id="popularity-weight-title">Popularity weight</span>
-                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
-                                            id="popularity-weight-reset-btn" aria-disabled="true"><i
-                                                class="fa-solid fa-arrow-rotate-left"></i></a>
-                                    </h5>
-                                    <label for="popularity-weight-range"
-                                        class="form-label form-text row justify-content-between">
-                                        <div class="col-6" id="popularity-weight-label-1">Less popular</div>
-                                        <div class="col-6 text-end" id="popularity-weight-label-2">Popular</div>
-                                    </label>
-                                    <input type="range" class="form-range" id="popularity-weight-range" min="0"
-                                        max="2" step="1" value="1" disabled>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col mb-3 advanced-option is-off">
-                                    <h5><span class="form-check form-switch float-end mb-0"><input
-                                                class="form-check-input" type="checkbox" role="switch"
-                                                id="date-range-enabled" aria-label="Release date"></span><i
-                                            class="fa-solid fa-calendar-days"></i> <span id="date-range-title">Release
+<!-- container for categories -->
+<div class="row" id="format-selection-section">
+<div class="col">
+<h5><i class="fa-solid fa-box-archive"></i> <span id="workformat-title" tabindex="-1">Categories</span>
+<a class="btn btn-outline-primary btn-add rounded-pill" data-bs-target="#workformat-modal" data-bs-toggle="modal" role="button"><i class="fa-solid fa-plus"></i></a>
+</h5>
+<div id="workformat-add-container"></div>
+<div class="form-text focus-ring focus-ring-danger rounded-2" id="workformat-add-container-hint" tabindex="-1">Not selected.</div>
+<hr/>
+</div>
+</div>
+<!-- container for weights and advanced options -->
+<button aria-controls="advanced-options-panel" aria-expanded="false" class="btn advanced-toggle d-flex align-items-center w-100 px-2 mb-2" data-bs-target="#advanced-options-panel" data-bs-toggle="collapse" id="advanced-panel-toggle" type="button">
+<i class="fa-solid fa-chevron-right advanced-arrow me-2"></i>
+<span id="advanced-panel-switch-label">Show advanced options</span>
+</button>
+<div class="collapse" id="advanced-options-panel">
+<div class="row">
+<div class="col mb-3 advanced-option is-off">
+<h5><span class="form-check form-switch float-end mb-0"><input aria-label="Popularity weight" class="form-check-input" id="popularity-weight-enabled" role="switch" type="checkbox"/></span><i class="fa-solid fa-scale-unbalanced-flip"></i> <span id="popularity-weight-title">Popularity weight</span>
+<a aria-disabled="true" class="btn btn-outline-primary btn-add rounded-pill disabled" id="popularity-weight-reset-btn" role="button"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+</h5>
+<label class="form-label form-text row justify-content-between" for="popularity-weight-range">
+<div class="col-6" id="popularity-weight-label-1">Less popular</div>
+<div class="col-6 text-end" id="popularity-weight-label-2">Popular</div>
+</label>
+<input class="form-range" disabled="" id="popularity-weight-range" max="2" min="0" step="1" type="range" value="1"/>
+</div>
+</div>
+<div class="row">
+<div class="col mb-3 advanced-option is-off">
+<h5><span class="form-check form-switch float-end mb-0"><input aria-label="Release date" class="form-check-input" id="date-range-enabled" role="switch" type="checkbox"/></span><i class="fa-solid fa-calendar-days"></i> <span id="date-range-title">Release
                                             date</span>
-                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
-                                            id="date-reset-btn" aria-disabled="true"><i
-                                                class="fa-solid fa-arrow-rotate-left"></i></a>
-                                    </h5>
-                                    <label for="date-range" class="form-label form-text" id="date-range-label">-</label>
-                                    <input type="range" class="form-range" id="date-range" min="0" max="100" value="5"
-                                        disabled>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col mb-3 advanced-option is-off">
-                                    <h5><span class="form-check form-switch float-end mb-0"><input
-                                                class="form-check-input" type="checkbox" role="switch"
-                                                id="dlcount-range-enabled" aria-label="Download count"></span><i
-                                            class="fa-solid fa-arrow-trend-up"></i> <span
-                                            id="dlcount-range-title">Download count</span>
-                                        <a class="btn btn-outline-primary btn-add rounded-pill disabled" role="button"
-                                            id="dlcount-reset-btn" aria-disabled="true"><i
-                                                class="fa-solid fa-arrow-rotate-left"></i></a>
-                                    </h5>
-                                    <label for="dlcount-range" class="form-label form-text row justify-content-between">
-                                        <div class="col-12" id="dlcount-range-label-0">Changing the value may yield poor
+<a aria-disabled="true" class="btn btn-outline-primary btn-add rounded-pill disabled" id="date-reset-btn" role="button"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+</h5>
+<label class="form-label form-text" for="date-range" id="date-range-label">-</label>
+<input class="form-range" disabled="" id="date-range" max="100" min="0" type="range" value="5"/>
+</div>
+</div>
+<div class="row">
+<div class="col mb-3 advanced-option is-off">
+<h5><span class="form-check form-switch float-end mb-0"><input aria-label="Download count" class="form-check-input" id="dlcount-range-enabled" role="switch" type="checkbox"/></span><i class="fa-solid fa-arrow-trend-up"></i> <span id="dlcount-range-title">Download count</span>
+<a aria-disabled="true" class="btn btn-outline-primary btn-add rounded-pill disabled" id="dlcount-reset-btn" role="button"><i class="fa-solid fa-arrow-rotate-left"></i></a>
+</h5>
+<label class="form-label form-text row justify-content-between" for="dlcount-range">
+<div class="col-12" id="dlcount-range-label-0">Changing the value may yield poor
                                             search results.</div>
-                                        <div class="col-6" id="dlcount-range-label-1">Lower</div>
-                                        <div class="col-6 text-end" id="dlcount-range-label-2">Higher</div>
-                                    </label>
-                                    <input type="range" class="form-range" id="dlcount-range" min="0" max="100"
-                                        step="10" value="50" disabled>
-                                </div>
-                            </div>
-                            <div class="row">
-                                <div class="col mb-3">
-                                    <h5><i class="fa-solid fa-people-roof"></i> <span id="age-title">Age</span></h5>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="age-checkbox-1">
-                                        <label class="form-check-label" id="age-checkbox-1-label" for="age-checkbox-1">
+<div class="col-6" id="dlcount-range-label-1">Lower</div>
+<div class="col-6 text-end" id="dlcount-range-label-2">Higher</div>
+</label>
+<input class="form-range" disabled="" id="dlcount-range" max="100" min="0" step="10" type="range" value="50"/>
+</div>
+</div>
+<div class="row">
+<div class="col mb-3">
+<h5><i class="fa-solid fa-people-roof"></i> <span id="age-title">Age</span></h5>
+<div class="form-check">
+<input checked="" class="form-check-input" id="age-checkbox-1" type="checkbox"/>
+<label class="form-check-label" for="age-checkbox-1" id="age-checkbox-1-label">
                                             All ages
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="age-checkbox-2">
-                                        <label class="form-check-label" id="age-checkbox-2-label" for="age-checkbox-2">
+</div>
+<div class="form-check">
+<input class="form-check-input" id="age-checkbox-2" type="checkbox"/>
+<label class="form-check-label" for="age-checkbox-2" id="age-checkbox-2-label">
                                             R-rated
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="age-checkbox-3" checked>
-                                        <label class="form-check-label" id="age-checkbox-3-label" for="age-checkbox-3">
+</div>
+<div class="form-check">
+<input class="form-check-input" id="age-checkbox-3" type="checkbox"/>
+<label class="form-check-label" for="age-checkbox-3" id="age-checkbox-3-label">
                                             Adult
                                         </label>
-                                    </div>
-                                </div>
-                                <hr>
-                            </div>
-                            <div class="row">
-                                <div class="col mb-3">
-                                    <h5><i class="fa-solid fa-trash"></i> <span id="misc-title">Excluded contents</span>
-                                    </h5>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="misc-checkbox-1" checked>
-                                        <label class="form-check-label" id="misc-checkbox-1-label"
-                                            for="misc-checkbox-1">
+</div>
+</div>
+<hr/>
+</div>
+<div class="row">
+<div class="col mb-3">
+<h5><i class="fa-solid fa-trash"></i> <span id="misc-title">Excluded contents</span>
+</h5>
+<div class="form-check">
+<input checked="" class="form-check-input" id="misc-checkbox-1" type="checkbox"/>
+<label class="form-check-label" for="misc-checkbox-1" id="misc-checkbox-1-label">
                                             Low-rated works
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="misc-checkbox-2" checked>
-                                        <label class="form-check-label" id="misc-checkbox-2-label"
-                                            for="misc-checkbox-2">
+</div>
+<div class="form-check">
+<input checked="" class="form-check-input" id="misc-checkbox-2" type="checkbox"/>
+<label class="form-check-label" for="misc-checkbox-2" id="misc-checkbox-2-label">
                                             AI-generated works
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="misc-checkbox-3" checked>
-                                        <label class="form-check-label" id="misc-checkbox-3-label"
-                                            for="misc-checkbox-3">
+</div>
+<div class="form-check">
+<input checked="" class="form-check-input" id="misc-checkbox-3" type="checkbox"/>
+<label class="form-check-label" for="misc-checkbox-3" id="misc-checkbox-3-label">
                                             Partially AI-generated works
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="misc-checkbox-4" checked>
-                                        <label class="form-check-label" id="misc-checkbox-4-label"
-                                            for="misc-checkbox-4">
+</div>
+<div class="form-check">
+<input checked="" class="form-check-input" id="misc-checkbox-4" type="checkbox"/>
+<label class="form-check-label" for="misc-checkbox-4" id="misc-checkbox-4-label">
                                             Guro works
                                         </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <input class="form-check-input" type="checkbox" id="misc-checkbox-5" checked>
-                                        <label class="form-check-label" id="misc-checkbox-5-label"
-                                            for="misc-checkbox-5">
+</div>
+<div class="form-check">
+<input checked="" class="form-check-input" id="misc-checkbox-5" type="checkbox"/>
+<label class="form-check-label" for="misc-checkbox-5" id="misc-checkbox-5-label">
                                             Gay works
                                         </label>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                            <div class="pt-2" id="similar-actions">
-                                <button type="button" class="btn btn-outline-primary btn-square" id="preset-save-btn"
-                                    data-bs-toggle="modal" data-bs-target="#preset-save-modal"
-                                    aria-label="Save preset" title="Save preset"><i
-                                        class="fa-solid fa-floppy-disk"></i></button>
-                                <button type="button" id="search-btn" class="btn btn-primary"><i
-                                        class="fa-solid fa-magnifying-glass"></i> <span
-                                        id="search-btn-label">Search</span></button>
-                                <button type="button" class="btn btn-outline-primary btn-square" id="preset-load-btn"
-                                    data-bs-toggle="modal" data-bs-target="#preset-load-modal"
-                                    aria-label="Load preset" title="Load preset"><i
-                                        class="fa-solid fa-folder-open"></i></button>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-outline-secondary flex-fill"
-                                        id="similar-reset-btn" aria-label="Reset search" title="Reset search"><i
-                                            class="fa-solid fa-arrow-rotate-left"></i> <span
-                                            id="similar-reset-label">Reset</span></button>
-                                    <button type="button" class="btn btn-outline-primary flex-fill"
-                                        id="similar-random-btn" aria-label="Random picks" title="Random picks"><i
-                                            class="fa-solid fa-dice"></i> <span
-                                            id="similar-random-label">Random</span></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- version and credits -->
-                    <div class="panel-footer text-end mt-3">
-                        <small class="version-box" id="welcome-version">ver 2.0</small>
-                        <div class="credits form-text" id="credits">Originally by <a
-                                href="https://github.com/snowmeow2/DLfilter" target="_blank"
-                                rel="noopener noreferrer">snowmeow2</a>. Revived by <a
-                                href="https://github.com/charasleeping/DLfilter" target="_blank"
-                                rel="noopener noreferrer">charasleeping</a>.</div>
-                    </div>
-                </div>
-
-                <!-- result panel -->
-                <div class="col-md-9 p-3" id="result-panel">
-                    <div id="welcome-banner" class="collapse show">
-                        <div class="row mx-4 mb-4 mt-0">
-                            <div class="border-start border-4 px-4">
-                                <h2><b id="welcome-title">Welcome to DLfilter.</b></h2>
-                                <p id="welcome-subtitle">A place to filter anything you love on DLsite</p>
-                                <h5 id="welcome-start-hint">Start with some <span
-                                        id="welcome-start-hint-keywords">keywords</span>, <span
-                                        id="welcome-start-hint-genres">genres</span>, or the <span
-                                        id="welcome-start-hint-workid">RJ ID</span>.
-                                </h5>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="visually-hidden text-muted mx-4 mt-2" id="search-info"><span
-                            id="search-info-count">-</span>
-                        works (<span id="search-info-time">-</span> seconds) <span class="vr mx-2"></span>
-                        Showing <span id="search-info-start"></span> - <span id="search-info-end"></span>
-                        results:</p>
-                    <!-- local catalogue search results -->
-                    <section class="mx-md-4 mb-4 d-none" id="catalog-results-section"
-                        aria-labelledby="catalog-results-title">
-                        <div class="mb-2">
-                            <h5 class="m-0"><i class="fa-solid fa-book-open"></i> <span
-                                    id="catalog-results-title">Works found</span></h5>
-                        </div>
-                        <p class="text-muted" id="catalog-status" role="status" aria-live="polite"></p>
-                        <div class="d-flex justify-content-center d-none" id="catalog-spinner">
-                            <div class="spinner-border text-primary" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                        <div class="row g-4" id="catalog-card-container"></div>
-                        <nav class="mt-4" aria-label="Catalog pages">
-                            <ul class="pagination justify-content-center flex-wrap" id="catalog-pagination"></ul>
-                        </nav>
-                        <hr>
-                    </section>
-                    <div class="d-flex justify-content-center visually-hidden" id="loading-spinner-container">
-                        <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                    <div class="row g-4 collapse" id="result-card-container">
-                        <!-- <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-xxl-3 col-xl-4 col-sm-6 col-12">
-                            <div class="work-card rounded-3 shadow-sm">
-                                <div class="work-thumb">
-                                    <a data-bs-toggle="collapse" href="#" role="button">
-                                        <img src="https://img.dlsite.jp/resize/images2/work/doujin/RJ01050000/RJ01049601_img_main_240x240.jpg"
-                                            class="rounded-3 shadow-sm" alt=""></a>
-                                    <div class="work-badge-container px-2">
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        <span
-                                            class="badge rounded-pill shadow-sm text-dark-emphasis bg-light-subtle border border-dark-subtle">Game
-                                            CG</span>
-                                    </div>
-                                    <div class="work-info-container rounded-bottom-3 p-2">
-                                        <div class="work-info-title px-1 pb-1"><b>Title of the work, but it is very very
-                                                long</b></div>
-                                        <div class="row justify-content-start">
-                                            <div class="col-8">
-                                                <div
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-star"></i> 5.0 (115)
-                                                    <span class="vr mx-2"></span>
-                                                    <i class="fa-solid fa-download"></i> 123456
-                                                </div>
-                                            </div>
-                                            <div class="col-4 text-end">
-                                                <a href="#"
-                                                    class="badge work-info-badge rounded-pill shadow-sm border border-light-subtle">
-                                                    <i class="fa-solid fa-comment"></i> 32
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="collapse" id="">
-                                    <div class="px-3 pt-2 pb-3 work-card-content">
-                                        <div><b>Artist</b> - Date</div>
-                                        <small>Desciption of the work, sevred as a preview of the work. </small>
-                                        <div class="mt-1">
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                            <span
-                                                class="badge rounded-pill shadow-sm text-dark-emphasis bg-primary-subtle border border-primary-subtle">86.5%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div> -->
-                    </div>
-                    <div class="row mt-4 mb-0 text-center result-footer">
-                        <div class="mb-4" id="search-end-of-result" style="display: none;"></div>
-                        <nav aria-label="Page navigation">
-                            <ul class="pagination justify-content-center" id="pagination-container"></ul>
-                        </nav>
-                        <div class="mb-0">
-                            <small class="py-1 px-2 border rounded-3" id="welcome-info">Collection of <span
-                                    id="banner-text">-</span> works since the
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="pt-2" id="similar-actions">
+<button aria-label="Save preset" class="btn btn-outline-primary btn-square" data-bs-target="#preset-save-modal" data-bs-toggle="modal" id="preset-save-btn" title="Save preset" type="button"><i class="fa-solid fa-download"></i></button>
+<button class="btn btn-primary" id="search-btn" type="button"><i class="fa-solid fa-magnifying-glass"></i> <span id="search-btn-label">Search</span></button>
+<button aria-label="Load preset" class="btn btn-outline-primary btn-square" data-bs-target="#preset-load-modal" data-bs-toggle="modal" id="preset-load-btn" title="Load preset" type="button"><i class="fa-solid fa-upload"></i></button>
+<div class="d-flex gap-2">
+<button aria-label="Reset search" class="btn btn-outline-secondary flex-fill" id="similar-reset-btn" title="Reset search" type="button"><i class="fa-solid fa-arrow-rotate-left"></i> <span id="similar-reset-label">Reset</span></button>
+<button aria-label="Random picks" class="btn btn-outline-primary flex-fill" id="similar-random-btn" title="Random picks" type="button"><i class="fa-solid fa-dice"></i> <span id="similar-random-label">Random</span></button>
+</div>
+</div>
+<!-- version and credits -->
+<div class="panel-footer text-end mt-3">
+<small class="version-box" id="welcome-version">ver 2.0</small>
+<div class="credits form-text" id="credits">Originally by <a href="https://github.com/snowmeow2/DLfilter" rel="noopener noreferrer" target="_blank">snowmeow2</a>. Revived by <a href="https://github.com/charasleeping/DLfilter" rel="noopener noreferrer" target="_blank">charasleeping</a>.</div>
+</div>
+</div>
+<!-- result panel -->
+<div class="col-md-9 p-3" id="result-panel">
+<div class="collapse show" id="welcome-banner">
+<div class="row mx-4 mb-4 mt-0">
+<div class="border-start border-4 px-4">
+<h2><b id="welcome-title">Welcome to DLfilter.</b></h2>
+<p id="welcome-subtitle">A place to filter anything you love on DLsite</p>
+<h5 id="welcome-start-hint">Search by keywords, genres, or product ID.</h5>
+</div>
+</div>
+</div>
+<!-- local catalogue search results -->
+<section aria-labelledby="catalog-results-title" class="mx-md-4 mb-4 d-none" id="catalog-results-section">
+<div class="mb-2">
+<h5 class="m-0"><i class="fa-solid fa-book-open"></i> <span id="catalog-results-title">Works found</span></h5>
+</div>
+<p aria-live="polite" class="text-muted" id="catalog-status" role="status"></p>
+<div class="d-flex justify-content-center d-none" id="catalog-spinner">
+<div class="spinner-border text-primary" role="status">
+<span class="visually-hidden">Loading...</span>
+</div>
+</div>
+<div class="row g-4" id="catalog-card-container"></div>
+<nav aria-label="Catalog pages" class="mt-4">
+<ul class="pagination justify-content-center flex-wrap" id="catalog-pagination"></ul>
+</nav>
+<hr/>
+</section>
+<div class="row mt-4 mb-0 text-center result-footer">
+<nav aria-label="Page navigation">
+</nav>
+<div class="mb-0">
+<small class="py-1 px-2 border rounded-3" id="welcome-info">Collection of <span id="banner-text">-</span> works since the
                                 millennium - Last updated
                                 on
                                 <span id="navbar-time">-</span></small>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-    </main>
-    <footer></footer>
-</body>
-
+</div>
+</div>
+</div>
+</div>
+</div></main>
+<footer></footer>
+<div class="d-none" id="copy-tags-store"><div id="copy-tags-content"><form id="copy-tags-form"><label class="form-label" for="rjid" id="rjid-title">Copy tags from</label><div class="input-group"><input aria-describedby="rjid-work-name" autocomplete="off" class="form-control" id="rjid" placeholder="RJ / BJ / VJ ID"/><button class="btn btn-primary" id="copy-tags-submit" type="submit">Copy</button></div><div aria-live="polite" class="form-text" id="rjid-work-name" role="status"></div></form></div></div></body>
 </html>

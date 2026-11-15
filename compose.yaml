@@ -8,6 +8,7 @@ services:
     volumes:
       - ./database:/data:ro
       - presets:/presets  # saved search presets
+      - search-cache:/cache
     restart: unless-stopped
 
   # Update the database with a local copy of the embedding model (no model download):
@@ -18,8 +19,7 @@ services:
     profiles: ["update"]
     build:
       context: .
-      args:
-        WITH_UPDATE: "1"
+      target: update
     image: dlfilter-update
     user: "${DLFILTER_UID:-1000}:${DLFILTER_GID:-1000}"
     environment:
@@ -34,3 +34,4 @@ services:
 
 volumes:
   presets:
+  search-cache:

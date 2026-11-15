@@ -1,4 +1,39 @@
 # Work database
+
+For ordinary installation, use the browser setup described in the [installation guide](installation.md). It accepts a portable serving ZIP; raw history and pickle are only needed for maintenance. Background title collection is available in Catalogue settings without rebuilding the main database. The maintenance instructions below remain for full catalogue updates.
+
+## Native server and portable vectors
+
+Normal serving now uses the Rust executable. A native release starts with `start.command` / `start.bat`; a source checkout needs `cargo build --release --locked` first. Catalogue collection and model embedding generation remain Python maintenance operations. The old Python HTTP implementation is retained only as a development test reference.
+
+Existing databases need a one-time conversion of the trusted local genre pickle:
+
+```sh
+uv run --extra convert --no-dev python -m module.export_vectors --trusted-pickle database/genre_vec.pkl --output database
+```
+
+This adds `genre_vectors.json` and `genre_vectors.f32` without replacing the pickle or work database. Newly generated embeddings export these files automatically. Rust never loads pickle. The installer accepts either legacy archives or bundles containing these additional files.
+
+Use `dlfilter prepare` to build search indexes after maintenance, `dlfilter serve --open` to launch, and `dlfilter doctor` to validate data. From source, prefix these commands with `./target/release/` (or use `.exe` on Windows). Prepared indexes are stored in the OS application cache, overridable with `DLFILTER_CACHE_DIR`; data may be mounted read-only. First preparation takes longer than a normal launch. Keep the server stopped during data updates and restart afterwards. The serving Docker image is native; the separate Compose update profile still uses Python.
+
+
+## Unified Search and RJ BJ VJ catalogues
+
+Search now combines keywords, genres and every active filter. Keywords and genres may both be empty to browse newest matching works; formats are optional. All selected scoring genres contribute. Copy tags adds genres without changing other filters, and the latest copied reference is excluded from similarity results. Preferences are restored automatically in the same browser; named presets remain separate.
+
+Supported collection sources are `maniax` (RJ), `books` (BJ), and `pro`/`soft` (VJ). Support does not populate an existing RJ-only database automatically. Explicitly collect a chosen date range:
+
+```sh
+python initial.py -d 2026-09-25 2026-09-25 NONE --sources books pro soft
+python initial.py -u NONE --sources maniax books pro soft -s
+```
+
+`--sources` defaults to all four sources. Normal updates only advance sources with recorded history; an uninitialized source prints a backfill instruction. They include the latest recorded day and end yesterday. An update may therefore perform crawling even when used to pick up saved translations; `--no_genre` only skips genre refresh. Existing `-i` prints dates and exits when raw data exists; use a normal update to rebuild when necessary.
+
+Legacy `dates_table.json` seeds maniax history only. New `source_dates_table.json` records dates per source. `catalogue_updates.sqlite` commits raw records and their completed source/day together and is replayed after interrupted collection, even before aggregate JSON snapshots are saved. Preserve both new files with raw catalogue backups. Do not run concurrent maintenance writers.
+
+The SQLite table remains `maniax` for compatibility and now retains tagless records for keyword search/browsing. Optional `imageUrl` stores upstream thumbnails; old databases fall back to prefix-specific paths. Stop the server before rebuilding, then restart it to reload genre metadata. The old `comic` feed redirects outside DLsite and is not collected.
+
 The directory structure of the database is as follows:
 ```
 DLfilter
@@ -21,7 +56,7 @@ DLfilter
 ### Initialize database
 A work database is required for DLfilter to run. 
 
-For first-time users, you can directly download the pre-built database from **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** (latest update: 2026-10-10; original works from 2000-01-01 with their Japanese titles only, ~470 MB, decompressed ~3.8 GB). Please extract the files to `DLfilter/database`, or install the zip with `python -m module.fetch_database --file <zip>`. It is the same file the launchers and `python -m module.fetch_database` download by default. It has no translated works or translated titles, but it includes the raw catalogue (`works_table.json`), so you can update it with `initial.py -u` and fetch [translations](#translated-editions) with `initial.py -u EN TC SC` as usual. You only need `initial.py -i` to build the catalogue yourself.
+For first-time users, you can directly download the pre-built database from **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** (latest update: 2026-10-10; original works from 2000-01-01 with their Japanese titles only, ~470 MB, decompressed ~3.8 GB). Please extract the files to `DLfilter/database`, or install the zip with `python -m module.fetch_database --file <zip>`. It is the same file `python -m module.fetch_database` downloads by default. Native launchers require the database to be installed first. It has no translated works or translated titles, but it includes the raw catalogue (`works_table.json`), so you can update it with `initial.py -u` and fetch [translations](#translated-editions) with `initial.py -u EN TC SC` as usual. You only need `initial.py -i` to build the catalogue yourself.
 
 If you want to build your own database, please execute `initial.py -i` for initialization. Please make sure that you have installed all the dependencies in your environment, including the `update` extra:
 ```bash
@@ -57,7 +92,6 @@ If you already have a database, you can update it by executing `initial.py -u` t
 ```bash
 python initial.py -u
 ```
-Assuming today is 2022-01-01, and the previous database only contains works up to 2021-12-01, then the program will automatically crawl the works from 2021-12-02 to 2022-01-01 to the database. Running `-u` again on the same day crawls yesterday's works once more, which refreshes their counts.
 
 If you need to update the database to a specific date, you can use the `-d` or `--date` argument:
 ```bash
@@ -87,7 +121,7 @@ python initial.py -u EN --limit 500 --workers 4
 
 There are two kinds, selected with `-k/--kinds titles editions` (default: both). `titles`: a work that offers several languages under one ID (for example RJ01722990) shows a different title per locale; these titles are recorded in `title_table.json` and stored in the columns `name_ENG`, `name_CHI_HANT` and `name_CHI_HANS`. This is the fast part, about 11,000 requests for a database with 460,000 works. `editions`: a translation published as its own work ID (such as a "[ENG Ver.]" edition) is listed per language and recorded in `translation_table.json`. This is the slow part, tens of thousands of requests on a first run.
 
-The program looks up every work it has not seen before, newest first, with `--workers` parallel requests (default 6) and at most `--rate` requests per second in total (default 4; DLsite refuses clients that go much faster, so raise it with care). The listing pages used to find editions are fetched at most once per second. Progress bars show the speed and the remaining time. If DLsite answers with HTTP 403 or 429, every request pauses (30 seconds, doubling each time) and the speed is halved for the rest of the run, and the run stops with a message after five failures; wait a while and rerun. Interrupt it at any time (Ctrl-C); a rerun resumes. After an interrupt or a failure it offers to rebuild `works.sqlite` from what is saved so far (with `-s` it just does; without a terminal it does not). You can also rebuild later with `python initial.py -u NONE --no_genre`, which needs no crawling. `works.sqlite` is also rebuilt when the originals were updated, so a run with `--limit` already makes the collected titles searchable.
+The program looks up every work it has not seen before, newest first, with `--workers` parallel requests (default 6) and at most `--rate` requests per second in total (default 4; DLsite refuses clients that go much faster, so raise it with care). The listing pages used to find editions are fetched at most once per second. Progress bars show the speed and the remaining time. If DLsite answers with HTTP 403 or 429, every request pauses (30 seconds, doubling each time) and the speed is halved for the rest of the run, and the run stops with a message after five failures; wait a while and rerun. Interrupt it at any time (Ctrl-C); a rerun resumes. After an interrupt or a failure it offers to rebuild `works.sqlite` from what is saved so far (with `-s` it just does; without a terminal it does not). You can also rebuild later with `python initial.py -u NONE --no_genre`; this may crawl recorded sources if their dates lag. `works.sqlite` is also rebuilt when the originals were updated, so a run with `--limit` already makes the collected titles searchable.
 
 An edition with its own work ID is stored as its own row that copies its original work (genres, rating, download count, description) and has its own ID, title, circle, release date and options. It is added only if its original work is in the database.
 

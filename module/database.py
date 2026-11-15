@@ -20,6 +20,7 @@ TITLE_COLUMNS = {"ENG": "name_ENG", "CHI_HANT": "name_CHI_HANT", "CHI_HANS": "na
 REQUIRED_COLUMNS = {
     "index",
     "name",
+    "description",
     "maker",
     "siteId",
     "type",
@@ -134,6 +135,8 @@ def add_translation_editions(df: pd.DataFrame, translations: dict) -> pd.DataFra
         "#" + info["options"] + "#" if info.get("options") else old
         for (_, info), old in zip(found, editions["options"])
     ]
+    if "imageUrl" in editions:
+        editions["imageUrl"] = [info.get("imageUrl") for _, info in found]
     editions["lang"] = [info["lang"] for _, info in found]
     editions["originalWorkno"] = [info["originalWorkno"] for _, info in found]
     editions["originalLang"] = [info["originalLang"] for _, info in found]

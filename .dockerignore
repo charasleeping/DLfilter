@@ -10,3 +10,14 @@ tests
 *.ipynb
 *.bak
 *.tmp
+
+node_modules
+playwright-report
+test-results
+
+target
+bin
+
+build
+dist
+*.spec

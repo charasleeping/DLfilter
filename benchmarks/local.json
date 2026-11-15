@@ -1,0 +1,127 @@
+{
+  "platform": "macOS-27.0.1-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "catalogue_rows": 459699,
+  "samples": 20,
+  "prepare_seconds": 28.03178650001064,
+  "backends": {
+    "python": {
+      "startup_seconds": 0.28200562502024695,
+      "queries": {
+        "browse": {
+          "first_ms": 255.74837502790615,
+          "median_ms": 225.19758297130466,
+          "p95_ms": 231.3172910362482,
+          "total": 55209
+        },
+        "short_keyword": {
+          "first_ms": 1249.4752919883467,
+          "median_ms": 1205.4451250005513,
+          "p95_ms": 1273.425291001331,
+          "total": 1326
+        },
+        "long_keyword": {
+          "first_ms": 1201.454583031591,
+          "median_ms": 1238.8571250485256,
+          "p95_ms": 1267.8391670342535,
+          "total": 210
+        },
+        "id": {
+          "first_ms": 189.98245894908905,
+          "median_ms": 195.30800002394244,
+          "p95_ms": 208.10933300526813,
+          "total": 1
+        },
+        "recent_similarity": {
+          "first_ms": 833.8610830251127,
+          "median_ms": 221.22237499570474,
+          "p95_ms": 241.36649997672066,
+          "total": 1513
+        },
+        "broad_similarity": {
+          "first_ms": 624.1084159701131,
+          "median_ms": 532.989333034493,
+          "p95_ms": 609.6867090091109,
+          "total": 55209
+        },
+        "deep_similarity_page": {
+          "first_ms": 531.710832961835,
+          "median_ms": 526.791000040248,
+          "p95_ms": 536.9471660233103,
+          "total": 55209
+        },
+        "random": {
+          "first_ms": 99.1248749778606,
+          "median_ms": 92.52783301053569,
+          "p95_ms": 103.74925000360236,
+          "total": 48
+        }
+      },
+      "peak_rss_mib": 855.3125
+    },
+    "rust": {
+      "startup_seconds": 0.6067009999533184,
+      "queries": {
+        "browse": {
+          "first_ms": 2.5426659849472344,
+          "median_ms": 0.5182499880902469,
+          "p95_ms": 0.6512500112876296,
+          "total": 55209
+        },
+        "short_keyword": {
+          "first_ms": 9.276416036300361,
+          "median_ms": 0.513582956045866,
+          "p95_ms": 0.5990409990772605,
+          "total": 1326
+        },
+        "long_keyword": {
+          "first_ms": 4.694792034570128,
+          "median_ms": 0.5150829674676061,
+          "p95_ms": 0.5935829831287265,
+          "total": 210
+        },
+        "id": {
+          "first_ms": 1.0837080189958215,
+          "median_ms": 0.2644589985720813,
+          "p95_ms": 0.27658400358632207,
+          "total": 1
+        },
+        "recent_similarity": {
+          "first_ms": 0.8053749916143715,
+          "median_ms": 0.531666970346123,
+          "p95_ms": 0.5747500108554959,
+          "total": 1513
+        },
+        "broad_similarity": {
+          "first_ms": 3.2665000180713832,
+          "median_ms": 0.49008300993591547,
+          "p95_ms": 0.565792026463896,
+          "total": 55209
+        },
+        "deep_similarity_page": {
+          "first_ms": 0.6782499840483069,
+          "median_ms": 0.5109169869683683,
+          "p95_ms": 0.5704580107703805,
+          "total": 55209
+        },
+        "random": {
+          "first_ms": 0.697874987963587,
+          "median_ms": 0.6282500107772648,
+          "p95_ms": 3.123208007309586,
+          "total": 48
+        }
+      },
+      "all_catalogue_similarity_first_ms": 12.040666944812983,
+      "peak_rss_mib": 408.96875
+    }
+  },
+  "acceptance": {
+    "warm_p95_under_150ms": true,
+    "rss_under_512mib": true,
+    "slow_case_speedups": {
+      "short_keyword": 2125.773182407992,
+      "browse": 355.1896921719747,
+      "broad_similarity": 1077.5809493455558
+    }
+  }
+}

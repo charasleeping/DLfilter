@@ -780,3 +780,93 @@ const localisation_options = {
         zh_TW: "DLsite限定"
     },
 }
+// Unified search labels in the same order as the language button.
+Object.assign(localisation, {
+  "copy_tags": {
+    "en_US": "Copy tags from a work",
+    "ja_JP": "作品からタグを追加",
+    "zh_CN": "从作品添加标签",
+    "zh_TW": "從作品加入標籤"
+  },
+  "copy_button": {
+    "en_US": "Copy",
+    "ja_JP": "コピー",
+    "zh_CN": "复制",
+    "zh_TW": "複製"
+  },
+  "product_id": {
+    "en_US": "Product ID",
+    "ja_JP": "作品番号",
+    "zh_CN": "作品编号",
+    "zh_TW": "作品編號"
+  },
+  "product_id_invalid": {
+    "en_US": "Enter an RJ, BJ or VJ ID with 6 or 8 digits.",
+    "ja_JP": "RJ・BJ・VJ と6桁または8桁の数字を入力してください。",
+    "zh_CN": "请输入 RJ、BJ 或 VJ 加六位或八位数字。",
+    "zh_TW": "請輸入 RJ、BJ 或 VJ 加六位或八位數字。"
+  },
+  "product_search_placeholder": {
+    "en_US": "Title, circle or product ID",
+    "ja_JP": "作品名・サークル名・作品番号",
+    "zh_CN": "作品名、社团名或作品编号",
+    "zh_TW": "作品名、社團名或作品編號"
+  },
+  "no_copy_tags": {
+    "en_US": "This work has no available genres to copy.",
+    "ja_JP": "この作品には追加できるタグがありません。",
+    "zh_CN": "此作品没有可添加的标签。",
+    "zh_TW": "此作品沒有可加入的標籤。"
+  },
+  "reference_work": {
+    "en_US": "Reference work",
+    "ja_JP": "参照作品",
+    "zh_CN": "参考作品",
+    "zh_TW": "參考作品"
+  },
+  "clear_reference": {
+    "en_US": "Clear reference work",
+    "ja_JP": "参照作品を解除",
+    "zh_CN": "清除参考作品",
+    "zh_TW": "清除參考作品"
+  },
+  "scoring_hint": {
+    "en_US": "Select genres to rank by similarity. Popularity weights apply when genres are selected.",
+    "ja_JP": "タグを選ぶと類似度順に表示します。人気度の重みはタグ選択時に適用されます。",
+    "zh_CN": "选择标签可按相似度排序；热门度权重仅在选有标签时生效。",
+    "zh_TW": "選擇標籤可依相似度排序；熱門度權重僅在選有標籤時生效。"
+  },
+  "selected_genres_hint": {
+    "en_US": "All selected search genres contribute. Only the first five required or excluded genres apply.",
+    "ja_JP": "検索タグはすべて使用します。必須・除外タグはそれぞれ最初の5件を使います。",
+    "zh_CN": "所有搜索标签均参与评分。必含和排除标签分别仅使用前五个。",
+    "zh_TW": "所有搜尋標籤均參與評分。必含和排除標籤分別僅使用前五個。"
+  },
+  "unified_hint": {
+    "en_US": "Keywords and filters apply together. Leave keywords and genres empty to browse newest works.",
+    "ja_JP": "キーワードと条件を組み合わせて検索します。キーワードとタグが空の場合は新着順です。",
+    "zh_CN": "关键词与筛选条件共同生效。留空关键词和标签可浏览最新作品。",
+    "zh_TW": "關鍵字與篩選條件共同生效。留空關鍵字和標籤可瀏覽最新作品。"
+  },
+  "unified_welcome": {
+    "en_US": "Search by keywords, genres, or product ID.",
+    "ja_JP": "キーワード・タグ・作品番号で検索しましょう。",
+    "zh_CN": "通过关键词、标签或作品编号搜索。",
+    "zh_TW": "透過關鍵字、標籤或作品編號搜尋。"
+  },
+  "date_label": {
+    "en_US": "After <span id=\"date-range-time\"></span>",
+    "ja_JP": "<span id=\"date-range-time\"></span>以降",
+    "zh_CN": "<span id=\"date-range-time\"></span>之后",
+    "zh_TW": "<span id=\"date-range-time\"></span>之後"
+  },
+  "work_not_in_local_db": {
+    "en_US": "This product ID is not in the local catalogue. Collect or update its source first.",
+    "ja_JP": "この作品番号はローカルカタログにありません。対象のデータを収集・更新してください。",
+    "zh_CN": "本地目录没有此作品编号，请先收集或更新相应来源。",
+    "zh_TW": "本機目錄沒有此作品編號，請先收集或更新相應來源。"
+  }
+});
+
+localisation.welcome_links = {"en_US": "Search by {keywords}, {genres}, or {formats}.", "ja_JP": "{keywords}・{genres}・{formats}で検索しましょう。", "zh_CN": "通过{keywords}、{genres}或{formats}搜索。", "zh_TW": "透過{keywords}、{genres}或{formats}搜尋。"};
+localisation.welcome_link_labels = {"en_US": {"keywords": "keywords", "genres": "genres", "formats": "product formats"}, "ja_JP": {"keywords": "キーワード", "genres": "ジャンル", "formats": "作品形式"}, "zh_CN": {"keywords": "关键词", "genres": "分类", "formats": "作品形式"}, "zh_TW": {"keywords": "關鍵字", "genres": "分類", "formats": "作品形式"}};

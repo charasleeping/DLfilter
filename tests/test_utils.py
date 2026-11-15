@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 import torch
 
-from module.utils import cos_sim
+from reference.utils import cos_sim
 
 
 def test_cos_sim_matches_numpy():

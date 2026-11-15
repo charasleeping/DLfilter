@@ -1,4 +1,39 @@
 # 作品資料庫
+
+一般安裝請使用[安裝指南](installation.md)中的瀏覽器設定。搜尋用 ZIP 無需原始歷史或 pickle。「目錄設定」可在背景收集標題，不必重建主資料庫。以下保留完整目錄維護方式。
+
+## 原生伺服器與可攜式向量
+
+正常執行現在使用 Rust 執行檔。原生發行版透過 `start.command` / `start.bat` 啟動；原始碼版先執行 `cargo build --release --locked`。目錄收集和模型向量產生仍屬於 Python 維護工具。舊 Python HTTP 實作僅保留供開發測試。
+
+既有資料需要對可信任的本機 pickle 執行一次轉換：
+
+```sh
+uv run --extra convert --no-dev python -m module.export_vectors --trusted-pickle database/genre_vec.pkl --output database
+```
+
+此操作加入 `genre_vectors.json` 和 `genre_vectors.f32`，保留原 pickle 和作品資料庫。新向量產生會自動輸出這些檔案。Rust 不讀取 pickle。安裝工具同時支援舊封存檔及包含新增檔案的封存檔。
+
+維護後可執行 `dlfilter prepare` 準備索引，使用 `dlfilter serve --open` 啟動，或用 `dlfilter doctor` 檢查。原始碼版命令需加 `./target/release/`，Windows 使用 `.exe`。索引位於系統應用程式快取，可由 `DLFILTER_CACHE_DIR` 指定；作品資料可唯讀掛載。首次準備比一般啟動耗時更長。更新前停止伺服器，完成後重新啟動。服務 Docker 映像使用原生程式，Compose 更新設定仍使用 Python。
+
+
+## 合併搜尋與 RJ BJ VJ 目錄
+
+搜尋現在同時套用關鍵字、標籤及所有篩選條件。關鍵字和評分標籤皆可留空，以瀏覽最新符合條件的作品；作品形式也可不選。所有已選評分標籤皆參與相似度計算。複製標籤會加入現有選擇，不改變其他篩選，並從相似結果排除最近的參考作品。同一瀏覽器會自動還原設定，與命名預設分別儲存。
+
+支援來源為 `maniax`（RJ）、`books`（BJ）、`pro` 和 `soft`（VJ）。既有 RJ 資料庫不會自動填入 BJ/VJ 歷史作品，請明確指定日期收集：
+
+```sh
+python initial.py -d 2026-09-25 2026-09-25 NONE --sources books pro soft
+python initial.py -u NONE --sources maniax books pro soft -s
+```
+
+`--sources` 預設選擇全部四個來源。正常更新僅推進已有紀錄的來源；未初始化的來源會顯示回填說明。更新範圍包含最後紀錄日，並截至昨天。因此，用更新反映已儲存翻譯時仍可能發生收集；`--no_genre` 僅略過標籤更新。原始目錄已存在時，`-i` 只顯示日期並結束。
+
+舊 `dates_table.json` 僅作為 maniax 歷史。新增 `source_dates_table.json` 依來源記錄日期。`catalogue_updates.sqlite` 在同一交易中儲存作品與已完成的來源日期，中斷後即使尚未儲存彙總 JSON 也能還原。備份原始目錄時請保留這兩個新檔，並避免同時執行多個維護程序。
+
+SQLite 資料表名稱仍為 `maniax`，保持相容。沒有標籤的作品也會保留供關鍵字搜尋與瀏覽。選用欄位 `imageUrl` 儲存來源縮圖，舊資料庫依編號前綴產生圖片路徑。重建前停止伺服器，之後重新啟動以載入標籤資料。舊 `comic` 來源會跳轉至 DLsite 以外，不予收集。
+
 DLfilter 的作品資料庫目錄結構如下：
 ```
 DLfilter
@@ -21,7 +56,7 @@ DLfilter
 ### 初始化資料庫
 DLfilter 需要一個作品資料庫才能開始運作。
 
-初次使用時，您可以直接從 **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** 下載預先建立好的資料庫（最後更新：2026-10-10；收錄 2000-01-01 起、只有日文標題的原作，約 470 MB，解壓縮後約 3.8 GB）。下載後，請將檔案解壓縮至 `DLfilter/database` 目錄下，或用 `python -m module.fetch_database --file <zip>` 安裝該 zip。它與啟動器、`python -m module.fetch_database` 預設下載的是同一個檔案，不含翻譯作品與翻譯標題，但包含原始目錄（`works_table.json`），因此可以照常用 `initial.py -u` 更新，並用 `initial.py -u EN TC SC` 取得[翻譯](#翻譯版本)。只有要自己建立目錄時才需要 `initial.py -i`。
+初次使用時，您可以直接從 **[Mega](https://mega.nz/file/rk4CVbrK#sfJd5F5RX-7wlQjq7PTS4aW5FhmHBKDyc0-HNvG3Jqk)** 下載預先建立好的資料庫（最後更新：2026-10-10；收錄 2000-01-01 起、只有日文標題的原作，約 470 MB，解壓縮後約 3.8 GB）。下載後，請將檔案解壓縮至 `DLfilter/database` 目錄下，或用 `python -m module.fetch_database --file <zip>` 安裝該 zip。它與 `python -m module.fetch_database` 預設下載的是同一個檔案。使用原生啟動器前需先安裝資料庫。該檔案不含翻譯作品與翻譯標題，但包含原始目錄（`works_table.json`），因此可以照常用 `initial.py -u` 更新，並用 `initial.py -u EN TC SC` 取得[翻譯](#翻譯版本)。只有要自己建立目錄時才需要 `initial.py -i`。
 
 如果您希望自行建立資料庫，請執行 `initial.py -i` 來初始化資料庫。執行時，請確保您的環境中已經安裝了所需的套件（包含 `update` 額外套件）：
 ```bash
@@ -57,7 +92,6 @@ HF_HUB_OFFLINE=1 python initial.py -u --model /path/to/sonoisa_sentence-luke-jap
 ```bash
 python initial.py -u
 ```
-假設今天是 2022-01-01，而更新前的資料庫只收錄至 2021-12-01 發售的作品，則程式會自動收集 2021-12-02 到 2022-01-01 間發售的作品資料至資料庫。同一天再次執行 `-u` 會重新收集昨天的作品，以更新它們的數據。
 
 如果您需要更新特定日期的資料庫，請使用 `-d` 或 `--date` 引數：
 ```bash
@@ -87,7 +121,7 @@ python initial.py -u EN --limit 500 --workers 4
 
 共有兩種，以 `-k/--kinds titles editions` 選擇（預設兩者皆做）。`titles`：同一個作品編號下提供多種語言的作品（例如 RJ01722990），各語系顯示不同標題，這些標題記錄於 `title_table.json`，並存入 `name_ENG`、`name_CHI_HANT`、`name_CHI_HANS` 欄位。這是較快的部分，46 萬件作品的資料庫約需 11,000 次請求。`editions`：以獨立作品編號發布的翻譯版本（如「[ENG Ver.]」）依語言列出，記錄於 `translation_table.json`。這是較慢的部分，首次執行需要數萬次請求。
 
-程式會逐一查詢尚未見過的作品，從最新的開始，並以 `--workers` 個並行請求（預設 6）、整體每秒不超過 `--rate` 次請求（預設 4；DLsite 會拒絕速度太快的用戶，請謹慎調高）進行。用來尋找翻譯版本的清單頁面每秒最多取得一次。進度條會顯示速度與剩餘時間。若 DLsite 回應 HTTP 403 或 429，所有請求會先暫停（30 秒，每次加倍），且本次執行的速度減半，連續失敗五次後程式會顯示訊息並停止；請稍後再重新執行。可隨時以 Ctrl-C 中斷；重新執行時會接續進度。中斷或失敗後，程式會詢問是否依已儲存的進度重建 `works.sqlite`（加上 `-s` 則直接重建；沒有終端機時不重建）。也可以之後用 `python initial.py -u NONE --no_genre` 重建，不需要爬取。更新原作時也會重建 `works.sqlite`，因此使用 `--limit` 的部分執行也能讓已收集的標題可被搜尋。
+程式會逐一查詢尚未見過的作品，從最新的開始，並以 `--workers` 個並行請求（預設 6）、整體每秒不超過 `--rate` 次請求（預設 4；DLsite 會拒絕速度太快的用戶，請謹慎調高）進行。用來尋找翻譯版本的清單頁面每秒最多取得一次。進度條會顯示速度與剩餘時間。若 DLsite 回應 HTTP 403 或 429，所有請求會先暫停（30 秒，每次加倍），且本次執行的速度減半，連續失敗五次後程式會顯示訊息並停止；請稍後再重新執行。可隨時以 Ctrl-C 中斷；重新執行時會接續進度。中斷或失敗後，程式會詢問是否依已儲存的進度重建 `works.sqlite`（加上 `-s` 則直接重建；沒有終端機時不重建）。也可以之後用 `python initial.py -u NONE --no_genre` 重建；日期落後時仍會收集。更新原作時也會重建 `works.sqlite`，因此使用 `--limit` 的部分執行也能讓已收集的標題可被搜尋。
 
 以獨立編號發布的翻譯版本會存成獨立的一列：複製原作的標籤、評分、下載數與簡介，但使用自己的編號、標題、社團、發售日與選項。只有原作在資料庫中時才會加入。
 
