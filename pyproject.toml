@@ -1,6 +1,6 @@
 [project]
 name = "dlfilter"
-version = "2.1.0"
+version = "2.0.0"
 description = "Tag-semantic search engine for DLsite works."
 readme = "README.md"
 license = "MIT"

@@ -44,6 +44,6 @@ if __name__ == '__main__':
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--data', type=Path, default=Path('database'))
     p.add_argument('--output', type=Path, required=True)
-    p.add_argument('--url', default='https://github.com/charasleeping/DLfilter/releases/download/database/works-serving.zip')
+    p.add_argument('--url', default='https://github.com/charasleeping/DLfilter/releases/download/v2.0/works-serving.zip')
     args = p.parse_args()
     print(json.dumps(build(args.data, args.output, args.url)))

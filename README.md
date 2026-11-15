@@ -14,7 +14,7 @@ The search server runs in Rust; the browser interface uses JavaScript. Normal us
 2. Open `start.bat` on Windows or `start.command` on macOS. On Linux, run `./start.command` from the extracted folder. The launcher opens DLFilter in your browser at **http://localhost:8000/**.
 3. On first launch, choose **Download catalogue** or **Import catalogue ZIP** in the browser. After setup prepares the search indexes, select **Start searching**.
 
-These steps apply to native releases containing browser setup and the private title helper; older releases may use different installation instructions. Automatic download additionally requires the portable serving catalogue and its manifest to be available from the database release. If that download is unavailable, import a compatible serving ZIP. See the [installation guide](docs/installation.md) for troubleshooting and legacy database conversion.
+The v2.0 release includes native apps and a separate `works-serving.zip` catalogue. Browser setup downloads that catalogue automatically; for offline setup, download it yourself and choose Import. Older releases may use different installation instructions. See the [installation guide](docs/installation.md) for troubleshooting and legacy database conversion.
 
 Keep the launcher window open while using DLFilter. Closing it stops the server. You can launch again without reinstalling the catalogue. On macOS or Windows, an unsigned download may trigger an operating-system warning; use your platform's normal application-verification process. Releases are not currently signed or notarized.
 

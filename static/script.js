@@ -6,7 +6,7 @@ const work_format_class = { Game: "primary", Manga: "success", "CG + Illustratio
 const rjid_regex = /^(?:RJ|BJ|VJ)(?:[0-9]{8}|[0-9]{6})$/;
 const normalizeProductId = value => String(value || "").normalize("NFKC").trim().toUpperCase();
 const page_size = 48;
-const version = "2.1";
+const version = "2.0";
 const popularity_weight_func = [1, 4, 2];
 const startDate = new Date(2000, 0, 1);
 const currentDate = new Date();

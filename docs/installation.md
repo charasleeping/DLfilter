@@ -6,7 +6,7 @@ Extract the full platform ZIP to a writable folder, open its launcher, and compl
 
 The release must include `bin/dlfilter` (or `.exe`), the matching `bin/dlfilter-titles` helper, templates, and static files. Choose the matching processor architecture. The private helper contains Python but no model or scientific libraries. The project currently does not sign/notarize releases. OS launch policies can vary; consult your platform's official verification guidance rather than disabling security protections globally.
 
-Setup offers a verified download or local ZIP import. The standard download is described by `serving-catalogue.json` on the project's `database` release. Its `version`, `url`, `sha256`, and compressed `size` describe `works-serving.zip`. These new artifacts must be published by a maintainer before automatic downloads work; this code change does not publish them. The older `works-db.zip` is a maintenance archive and may need conversion.
+Setup offers a verified download or local ZIP import. The standard download is described by `serving-catalogue.json` on the project's `v2.0` release. Its `version`, `url`, `sha256`, and compressed `size` describe `works-serving.zip`. The v2.0 release publishes these serving artifacts alongside the native apps. The older `Databases` release contains `database.zip`, a maintenance archive that may need conversion.
 
 A serving bundle contains `works.sqlite`, `genre_table.json`, `workformat.json`, `genre_vectors.json`, and `genre_vectors.f32`. Import ignores unrelated files, rejects unsafe paths/symlinks/duplicate catalogue files, and validates the catalogue before activation. Installation never crawls DLsite. Downloads and expanded accepted files are limited to 16 GiB. Leave additional room for the archive, extraction, indexes, and any preserved previous installation.
 
@@ -62,7 +62,7 @@ Restart the app; it recognizes the existing catalogue. Do not upload a legacy-on
 | `DLFILTER_CACHE_DIR` | OS app cache, keyed by catalogue path | Search indexes, supplemental titles and catalogue settings |
 | `DLFILTER_HOST` | `127.0.0.1` | Listening address |
 | `DLFILTER_PORT` | `8000` | Listening port |
-| `DLFILTER_DB_MANIFEST_URL` | Project database release manifest | Alternate trusted serving-bundle manifest |
+| `DLFILTER_DB_MANIFEST_URL` | v2.0 serving-bundle manifest | Alternate trusted serving-bundle manifest |
 | `DLFILTER_TITLE_PYTHON` | Unset | Source-only private helper interpreter fallback |
 | `DLFILTER_MODEL` | Default Japanese embedding model | Python maintenance only |
 
@@ -97,6 +97,6 @@ Create portable vectors from trusted local data, then build the serving artifact
 python scripts/package_catalogue.py --data database --output dist/catalogue
 ```
 
-Validate the output ZIP through browser import and verify its SHA-256. Publish `works-serving.zip`, `works-serving.zip.sha256`, and `serving-catalogue.json` together on the database release only after review. Full maintenance bundles remain separate. Do not advertise automatic setup before those artifacts exist.
+Validate the output ZIP through browser import and verify its SHA-256. Publish `works-serving.zip`, `works-serving.zip.sha256`, and `serving-catalogue.json` together on the matching app release only after review. Full maintenance bundles remain separate. Do not advertise automatic setup before those artifacts exist.
 
 The native release workflow freezes and smoke-tests the helper, builds Rust, packages the app per platform, and attaches `.zip.sha256` files. Release publication is a separate maintainer action. Build/CI test instructions are in [DEVELOPMENT.md](DEVELOPMENT.md).

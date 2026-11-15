@@ -22,7 +22,7 @@ use std::{
 };
 use tower::ServiceExt;
 const MANIFEST: &str =
-    "https://github.com/charasleeping/DLfilter/releases/download/database/serving-catalogue.json";
+    "https://github.com/charasleeping/DLfilter/releases/download/v2.0/serving-catalogue.json";
 const MAX_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
