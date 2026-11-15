@@ -150,7 +150,11 @@ test('result copying preserves filters and never starts a search automatically',
     await copy(page, 'RJ999999');
     await expect(page.locator('#rjid-work-name')).toContainText('not in the local catalogue');
     await expect(page.locator('#reference-work')).toContainText('Test Book');
-    await page.locator('#search-title').click();
+    // Popper can place the popup over the heading on shorter Linux layouts.
+    // Click the empty top margin, verifying it is actually outside the popup.
+    const outside = { x: Math.floor(page.viewportSize().width / 2), y: 8 };
+    expect(await page.evaluate(({ x, y }) => !document.elementFromPoint(x, y)?.closest('.copy-tags-popover'), outside)).toBe(true);
+    await page.mouse.click(outside.x, outside.y);
     await expect(page.locator('.copy-tags-popover')).toHaveCount(0);
 });
 
