@@ -246,6 +246,7 @@ $(document).ready(function () {
     }
     $("#copy-tags-btn").on("click", () => {
         copy_open = !copy_open;
+        $("#copy-tags-btn").attr("aria-expanded", String(copy_open));
         copy_open ? popover.show() : hideCopy();
     });
     $("#copy-tags-btn").on("shown.bs.popover", () => {
@@ -264,7 +265,7 @@ $(document).ready(function () {
     $("#copy-tags-form").on("submit", event => { event.preventDefault(); copyTags($("#rjid").val()); });
     $("#rjid").on("input", () => { copy_id++; $("#rjid-work-name").empty(); });
     $("#reference-work").on("click", "#clear-reference", () => { reference_id = reference_name = ""; copy_id++; refreshLabels(); changed(); });
-    $("#catalog-card-container").on("click", ".catalog-find-similar", function () { copy_open = true; popover.show(); $("#rjid").val($(this).attr("data-rjid")); copyTags($(this).attr("data-rjid")); });
+    $("#catalog-card-container").on("click", ".catalog-find-similar", function () { copy_open = true; $("#copy-tags-btn").attr("aria-expanded", "true"); popover.show(); $("#rjid").val($(this).attr("data-rjid")); copyTags($(this).attr("data-rjid")); });
     $("#catalog-search-form").on("submit", event => { event.preventDefault(); runSearch(); });
     $("#search-btn").on("click", () => runSearch());
     $("#similar-random-btn").on("click", () => runSearch(1, true));

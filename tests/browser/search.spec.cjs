@@ -6,6 +6,7 @@ async function open(page) {
 async function copy(page, id) {
     if (await page.locator('#copy-tags-btn').getAttribute('aria-expanded') !== 'true') await page.locator('#copy-tags-btn').click();
     await expect(page.locator('#copy-tags-btn')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#rjid')).toBeFocused();
     await page.locator('#rjid').fill(id);
     await page.locator('#rjid').press('Enter');
 }
